@@ -292,13 +292,13 @@ export class Driver {
         }
         logger.log(
             '\n  Visited routes:\n' +
-                [
-                    ...new Set(
-                        this.visitedPages
-                            .filter(url => url.href.startsWith(this.sourcegraphBaseUrl))
-                            .map(url => `    ${url.pathname}`)
-                    ),
-                ].join('\n')
+            [
+                ...new Set(
+                    this.visitedPages
+                        .filter(url => url.href.startsWith(this.sourcegraphBaseUrl))
+                        .map(url => `    ${url.pathname}`)
+                ),
+            ].join('\n')
         )
     }
 
@@ -447,7 +447,7 @@ export class Driver {
             for (const slug of alwaysCloning) {
                 await this.page.goto(
                     this.sourcegraphBaseUrl +
-                        `/site-admin/repositories?filter=cloning&query=${encodeURIComponent(slug)}`
+                    `/site-admin/repositories?filter=cloning&query=${encodeURIComponent(slug)}`
                 )
                 await this.page.waitForSelector(`.repository-node[data-test-repository='${slug}']`, { visible: true })
                 // Workaround for https://github.com/sourcegraph/sourcegraph/issues/5286
@@ -684,8 +684,8 @@ export class Driver {
             const debuggingExpressions = regexps.map(regexp => getDebugExpressionFromRegexp(tag, regexp))
             return new Error(
                 `Could not find element with text ${JSON.stringify(text)}, options: ${JSON.stringify(options)}` +
-                    (underlying ? `. Underlying error was: ${JSON.stringify(underlying.message)}.` : '') +
-                    ` Debug expressions: ${debuggingExpressions.join('\n')}`
+                (underlying ? `. Underlying error was: ${JSON.stringify(underlying.message)}.` : '') +
+                ` Debug expressions: ${debuggingExpressions.join('\n')}`
             )
         }
 
@@ -693,15 +693,15 @@ export class Driver {
             async () => {
                 const handlePromise = wait
                     ? this.page
-                          .waitForFunction(
-                              findElementMatchingRegexps,
-                              typeof wait === 'object' ? wait : {},
-                              tag,
-                              regexps
-                          )
-                          .catch(error => {
-                              throw notFoundError(error)
-                          })
+                        .waitForFunction(
+                            findElementMatchingRegexps,
+                            typeof wait === 'object' ? wait : {},
+                            tag,
+                            regexps
+                        )
+                        .catch(error => {
+                            throw notFoundError(error)
+                        })
                     : this.page.evaluateHandle(findElementMatchingRegexps, tag, regexps)
 
                 const element = (await handlePromise).asElement()
@@ -775,6 +775,8 @@ export async function createDriverForTest(options?: Partial<DriverOptions>): Pro
         'windowHeight'
     )
 
+    // config.sourcegraphBaseUrl = 'http://google.com'
+
     // Apply defaults
     const resolvedOptions: DriverOptions = {
         ...config,
@@ -790,6 +792,8 @@ export async function createDriverForTest(options?: Partial<DriverOptions>): Pro
         defaultViewport: null,
         timeout: 300000,
     }
+
+    // config.sourcegraphBaseUrl = 'http://google.com'
 
     // Chrome
     args.push(`--window-size=${config.windowWidth},${config.windowHeight}`)
@@ -811,9 +815,14 @@ export async function createDriverForTest(options?: Partial<DriverOptions>): Pro
         args.push(`--disable-extensions-except=${chromeExtensionPath}`, `--load-extension=${chromeExtensionPath}`)
     }
 
+    console.log("# launchOptions", launchOptions)
+
     const browser: puppeteer.Browser = await puppeteer.launch({ ...launchOptions })
 
     const page = await browser.newPage()
+
+    // await new Promise(resolve => setTimeout(resolve, 5 * 1000))
+    // config.sourcegraphBaseUrl = 'http://google.com'
 
     return new Driver(browser, page, resolvedOptions)
 }
