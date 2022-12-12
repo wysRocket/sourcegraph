@@ -7,6 +7,8 @@ module.exports = class JSDOMEnvironmentGlobal extends TestEnvironment {
   constructor(config, options) {
     super(config, options)
 
+    console.log("RUNNING NEW THINGS")
+
     const global = (this.global = this.dom.window.document.defaultView)
 
     // JSDOM does not have SVGAElement implemented. Use a quick and dirty polyfill.
