@@ -91,7 +91,7 @@ describe('recentSearches', () => {
             await waitFor(() => expect(getByTestId('state')).toHaveTextContent('success'))
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
-            expect(items).toMatchInlineSnapshot('Array []')
+            expect(items).toMatchInlineSnapshot('Array []', `[]`)
         })
 
         test('recent searches is populated from event logs if no data in temp settings, with deduplication', async () => {
@@ -114,7 +114,7 @@ describe('recentSearches', () => {
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
             expect(items).toMatchInlineSnapshot(`
-                Array [
+                [
                   "test0",
                   "test1",
                 ]
@@ -130,7 +130,7 @@ describe('recentSearches', () => {
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
             expect(items).toMatchInlineSnapshot(`
-                Array [
+                [
                   "test0",
                   "test1",
                   "test2",
@@ -153,7 +153,7 @@ describe('recentSearches', () => {
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
             expect(items).toMatchInlineSnapshot(`
-                Array [
+                [
                   "test4",
                   "test0",
                   "test1",
@@ -175,13 +175,13 @@ describe('recentSearches', () => {
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
             expect(items).toMatchInlineSnapshot(`
-                    Array [
-                      "test2",
-                      "test0",
-                      "test1",
-                      "test3",
-                    ]
-                `)
+                [
+                  "test2",
+                  "test0",
+                  "test1",
+                  "test3",
+                ]
+            `)
         })
 
         test('adding an item beyond the limit of the list removes the last item', async () => {
@@ -196,7 +196,7 @@ describe('recentSearches', () => {
 
             const items = queryAllByRole('listitem').map(element => element.textContent)
             expect(items).toMatchInlineSnapshot(`
-                Array [
+                [
                   "test20",
                   "test0",
                   "test1",
