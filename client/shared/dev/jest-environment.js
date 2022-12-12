@@ -7,7 +7,7 @@ module.exports = class JSDOMEnvironmentGlobal extends TestEnvironment {
   constructor(config, options) {
     super(config, options)
 
-    console.log("RUNNING NEW THINGS")
+    console.log(`node ${process.version}`)
 
     const global = (this.global = this.dom.window.document.defaultView)
 
