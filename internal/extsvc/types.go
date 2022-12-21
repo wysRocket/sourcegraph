@@ -502,8 +502,7 @@ func ExtractEncryptableBaseURL(ctx context.Context, kind string, config *Encrypt
 		return CodeHostBaseURL{}, errors.New("service does not have a URL")
 	}
 
-	baseUrl, err := NewCodeHostBaseURL(url)
-	return baseUrl, err
+	return NewCodeHostBaseURL(url)
 }
 
 func extractURL(parsed any, kind string) (string, error) {
