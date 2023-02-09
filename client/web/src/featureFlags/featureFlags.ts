@@ -28,6 +28,7 @@ export type FeatureFlagName =
     | 'cody-web-search'
     | 'own-promote'
     | 'own-analytics'
+    | 'visual-settings-editor'
 
 interface OrgFlagOverride {
     orgID: string
