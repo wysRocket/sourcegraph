@@ -13,15 +13,12 @@ jobs:
     outputs:
       releaseBranchExists: ${{ steps.checkout.outputs.exists }}
     steps:
-      - name: Check if latest release branch exists
+      - name: Checkout new release branch
         id: checkout
-        run: |
-          branch="5.0"
-          if curl --silent -I "https://api.github.com/repos/sourcegraph/sourcegraph/git/refs/heads/${branch}" | grep "HTTP/2 200"; then
-            echo "::set-output name=exists::true"
-          else
-            echo "::set-output name=exists::false"
-          fi
+        uses: actions/checkout@v3
+        with:
+          # This value is to be changed after each release, the value should be updated to that of the upcoming release.
+          ref: 5.0
 
   protect-pr:
     runs-on: ubuntu-latest
