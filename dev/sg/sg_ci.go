@@ -1068,7 +1068,7 @@ I only suggest something if I am certain about my answer.`,
 	block := std.Out.Block(output.Styledf(output.StyleSuggestion, "Answer from Cody"))
 	block.WriteMarkdown(result, output.MarkdownNoMargin, output.MarkdownIndent(2))
 	block.Close()
-	fmt.Println(time.Now().Sub(start))
+	fmt.Println(time.Since(start))
 
 	return nil
 }
