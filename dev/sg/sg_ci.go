@@ -14,6 +14,7 @@ import (
 	"github.com/buildkite/go-buildkite/v3/buildkite"
 	"github.com/gen2brain/beeep"
 	"github.com/grafana/regexp"
+	"github.com/pjlast/llmsp/claude"
 	"github.com/urfave/cli/v2"
 
 	sgrun "github.com/sourcegraph/run"
@@ -744,7 +745,18 @@ From there, you can start exploring logs with the Grafana explore panel.
 			grafanaURL := buildGrafanaURL(text, stepName)
 			return open.URL(grafanaURL)
 		},
-	}},
+	}, {
+		Name:        "cody",
+		Aliases:     []string{},
+		Usage:       "Ask Cody about the failure of a build on CI",
+		UsageText:   "",
+		Description: "",
+		ArgsUsage:   "",
+		Category:    "",
+		Flags:       ciTargetFlags,
+		Action:      askCody,
+	},
+	},
 }
 
 func buildGrafanaURL(text string, stepName string) string {
@@ -938,4 +950,125 @@ func statusTicker(ctx context.Context, f func() (bool, error)) error {
 			return ctx.Err()
 		}
 	}
+}
+
+func getFailedJobLogs(cmd *cli.Context) (*buildkite.Job, []byte, error) {
+	client, err := bk.NewClient(cmd.Context, std.Out)
+	if err != nil {
+		return nil, nil, err
+	}
+	target, err := getBuildTarget(cmd)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	build, err := target.GetBuild(cmd.Context, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var failedJob *buildkite.Job
+
+	for _, j := range build.Jobs {
+		if j.State != nil && *j.State == "failed" {
+			failedJob = j
+		}
+	}
+	logs, err := client.JobRawLog(failedJob)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return failedJob, logs, nil
+}
+
+func askCody(cmd *cli.Context) error {
+	std.Out.WriteNoticef("Fetching log of the first job failure on build %d", cmd.Int("build"))
+	job, logs, err := getFailedJobLogs(cmd)
+	if err != nil {
+		return errors.Newf("failed to get failed job logs for build %s", cmd.Int("build"))
+	}
+
+	ciRefContent, err := os.ReadFile("./doc/dev/background-information/ci/reference.md")
+	if err != nil {
+		return errors.Newf("failed to read ci reference.md: %v", err)
+	}
+	bazelDocs, err := os.ReadFile("./doc/dev/background-information/bazel.md")
+	if err != nil {
+		return errors.Newf("failed to read ci bazel.md: %v", err)
+	}
+	bazelClientDocs, err := os.ReadFile("./doc/dev/background-information/bazel_web.md")
+	if err != nil {
+		return errors.Newf("failed to read ci bazel_web.md: %v", err)
+	}
+
+	srcURL := os.Getenv("SRC_URL")
+	srcToken := os.Getenv("SRC_TOKEN")
+	cli := claude.NewClient(srcURL, srcToken, nil)
+	messages := []claude.Message{
+		{
+			Speaker: "ASSISTANT",
+			Text: `I am Cody, an AI-powered coding assistant developed by Sourcegraph. I operate inside the Sourcegraph repository. My task is to help programmers with debugging tasks. I specialize in diagnosing CI failures.
+I have access to all files present in your Sourcegraph repository.
+I am able to suggest code changes and commands to run.
+I will generate suggestions as concisely and clearly as possible.
+I only suggest something if I am certain about my answer.`,
+		},
+		{
+			Speaker: "HUMAN",
+			Text:    fmt.Sprintf(`Here is some extra information about our CI Pipeline. Reference this information when you diagnose any problems I send to you about steps failing on the CI Pipeline: %s`, ciRefContent),
+		},
+		{
+			Speaker: claude.Assistant,
+			Text:    "Ok.",
+		},
+		{
+			Speaker: "HUMAN",
+			Text:    fmt.Sprintf(`Here is some extra information about Bazel. Reference this information when you diagnose any problems I send to you about things failing with Bazel: %s`, bazelDocs),
+		},
+		{
+			Speaker: claude.Assistant,
+			Text:    "Ok.",
+		},
+		{
+			Speaker: "HUMAN",
+			Text:    fmt.Sprintf(`Here is some extra information about our Client code using Bazel. Reference this information when you diagnose any problems I send to you about things failing with Bazel: %s`, bazelClientDocs),
+		},
+		{
+			Speaker: claude.Assistant,
+			Text:    "Ok.",
+		},
+		{
+			Speaker: "HUMAN",
+			Text:    fmt.Sprintf(`"Here is the failed job log output for step %s: %s`, *job.Name, logs),
+		},
+		{
+			Speaker: claude.Assistant,
+			Text:    "Ok.",
+		},
+		{
+			Speaker: "HUMAN",
+			Text:    `When suggesting fixes please use bazel commands equivalent if they exist, and if more debugging is needed they should reach out to @dev-experience-support. Show my why the build failed and suggest fixes I should attempt. If tests failed, show me which tests I should rerun and how`,
+		},
+		{
+			Speaker: "ASSISTANT",
+			Text:    "```markdown",
+		},
+	}
+
+	params := claude.DefaultCompletionParameters(messages)
+
+	start := time.Now()
+	std.Out.WriteNoticef("Asking Cody 🤖 why %s failed...", *job.Name)
+	resChan, _ := cli.StreamCompletion(context.Background(), params, true)
+	result := ""
+	for res := range resChan {
+		result = res
+	}
+	block := std.Out.Block(output.Styledf(output.StyleSuggestion, "Answer from Cody"))
+	block.WriteMarkdown(result, output.MarkdownNoMargin, output.MarkdownIndent(2))
+	block.Close()
+	fmt.Println(time.Now().Sub(start))
+
+	return nil
 }

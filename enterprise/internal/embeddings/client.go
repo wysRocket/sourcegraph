@@ -39,7 +39,7 @@ func NewClient() *Client {
 
 type Client struct {
 	// Endpoints to embeddings service.
-	Endpoints *endpoint.Map
+	ndpoints *endpoint.Map
 
 	// HTTP client to use
 	HTTPClient httpcli.Doer

@@ -1850,6 +1850,8 @@ github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pjbgf/sha1cd v0.2.3 h1:uKQP/7QOzNtKYH7UTohZLcjF5/55EnTw0jO/Ru4jZwI=
 github.com/pjbgf/sha1cd v0.2.3/go.mod h1:HOK9QrgzdHpbc2Kzip0Q1yi3M2MFGPADtR6HjG65m5M=
+github.com/pjlast/llmsp v0.0.0-20230414080540-f0540c8273e6 h1:NYUDETjlkAs4ui0FZUefeHMZHmwJRwDwf1GGJmNFq5I=
+github.com/pjlast/llmsp v0.0.0-20230414080540-f0540c8273e6/go.mod h1:s3lAni39SNk6zPyz54MEngGFPJlvSwDHo2YDm7mbpmQ=
 github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4/go.mod h1:4OwLy04Bl9Ef3GJJCoec+30X3LQs/0/m4HFRt/2LUSA=
 github.com/pkg/browser v0.0.0-20210115035449-ce105d075bb4/go.mod h1:N6UoU20jOqggOuDwUaBQpluzLNDqif3kq9z2wpdYEfQ=
 github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 h1:KoWmjvw+nsYOo29YJK9vDA65RGE3NrOnUtO7a+RF9HU=
