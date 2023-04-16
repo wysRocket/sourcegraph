@@ -28,6 +28,7 @@ export function App(): React.ReactElement {
     const [inputHistory, setInputHistory] = useState<string[] | []>([])
     const [userHistory, setUserHistory] = useState<ChatHistory | null>(null)
     const [contextStatus, setContextStatus] = useState<ChatContextStatus | null>(null)
+    const [followups, setFollowups] = useState<string[] | null>(null)
 
     useEffect(() => {
         vscodeAPI.onMessage(message => {
@@ -68,6 +69,9 @@ export function App(): React.ReactElement {
                     break
                 case 'view':
                     setView(message.messages)
+                    break
+                case 'followups':
+                    setFollowups(message.followups)
                     break
             }
         })
@@ -134,6 +138,7 @@ export function App(): React.ReactElement {
                     messageInProgress={messageInProgress}
                     transcript={transcript}
                     contextStatus={contextStatus}
+                    followups={followups}
                     formInput={formInput}
                     setFormInput={setFormInput}
                     inputHistory={inputHistory}
