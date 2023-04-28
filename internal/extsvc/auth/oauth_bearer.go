@@ -86,6 +86,9 @@ type OAuthBearerTokenWithSSH struct {
 	PrivateKey string
 	PublicKey  string
 	Passphrase string
+
+	OptInToCommitSigning bool
+	SigningKey           *SigningKey
 }
 
 var (

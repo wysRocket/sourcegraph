@@ -33,6 +33,9 @@ type BasicAuthWithSSH struct {
 	PrivateKey string
 	PublicKey  string
 	Passphrase string
+
+	OptInToCommitSigning bool
+	SigningKey           *SigningKey
 }
 
 var _ Authenticator = &BasicAuthWithSSH{}

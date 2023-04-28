@@ -1145,21 +1145,28 @@ func (r *Resolver) CreateBatchChangesCredential(ctx context.Context, args *graph
 		return nil, errors.New("empty credential not allowed")
 	}
 
+	var optInToCommitSigning bool
+	if args.OptInToCommitSigning != nil {
+		optInToCommitSigning = *args.OptInToCommitSigning
+	}
+
 	if userID != 0 {
 		return r.createBatchChangesUserCredential(ctx, createBatchChangesUserCredentialArgs{
-			externalServiceURL:  args.ExternalServiceURL,
-			externalServiceType: extsvc.KindToType(kind),
-			userID:              userID,
-			credential:          args.Credential,
-			username:            args.Username,
+			externalServiceURL:   args.ExternalServiceURL,
+			externalServiceType:  extsvc.KindToType(kind),
+			userID:               userID,
+			credential:           args.Credential,
+			username:             args.Username,
+			optInToCommitSigning: optInToCommitSigning,
 		})
 	}
 
 	return r.createBatchChangesSiteCredential(ctx, createBatchChangesSiteCredentialArgs{
-		externalServiceURL:  args.ExternalServiceURL,
-		externalServiceType: extsvc.KindToType(kind),
-		credential:          args.Credential,
-		username:            args.Username,
+		externalServiceURL:   args.ExternalServiceURL,
+		externalServiceType:  extsvc.KindToType(kind),
+		credential:           args.Credential,
+		username:             args.Username,
+		optInToCommitSigning: optInToCommitSigning,
 	})
 }
 
@@ -1275,6 +1282,18 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, args 
 	if err != nil {
 		return nil, err
 	}
+
+	var signingKeyDetails *extsvcauth.SigningKey
+
+	if args.optInToCommitSigning {
+		signingKeyDetails = &extsvcauth.SigningKey{
+			KeyType:    extsvcauth.SSHSigningKeyType,
+			Passphrase: keypair.Passphrase,
+			PrivateKey: keypair.PrivateKey,
+			PublicKey:  keypair.PublicKey,
+		}
+	}
+
 	if args.externalServiceType == extsvc.TypeBitbucketServer {
 		// We need to fetch the username for the token, as just an OAuth token isn't enough for some reason..
 		username, err := svc.FetchUsernameForBitbucketServerToken(ctx, args.externalServiceURL, args.externalServiceType, args.credential)
@@ -1285,31 +1304,39 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, args 
 			return nil, err
 		}
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: username, Password: args.credential},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
+			SigningKey:           signingKeyDetails,
 		}
 	} else if args.externalServiceType == extsvc.TypeBitbucketCloud {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
+			SigningKey:           signingKeyDetails,
 		}
 	} else if args.externalServiceType == extsvc.TypeAzureDevOps {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
+			SigningKey:           signingKeyDetails,
 		}
 	} else {
 		a = &extsvcauth.OAuthBearerTokenWithSSH{
-			OAuthBearerToken: extsvcauth.OAuthBearerToken{Token: args.credential},
-			PrivateKey:       keypair.PrivateKey,
-			PublicKey:        keypair.PublicKey,
-			Passphrase:       keypair.Passphrase,
+			OAuthBearerToken:     extsvcauth.OAuthBearerToken{Token: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
+			SigningKey:           signingKeyDetails,
 		}
 	}
 
