@@ -176,7 +176,7 @@ type CreateBatchChangesCredentialArgs struct {
 	User                 *graphql.ID
 	Username             *string
 	Credential           string
-	OptInToCommitSigning bool
+	OptInToCommitSigning *bool
 }
 
 type DeleteBatchChangesCredentialArgs struct {

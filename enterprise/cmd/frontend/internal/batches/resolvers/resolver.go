@@ -1146,24 +1146,44 @@ func (r *Resolver) CreateBatchChangesCredential(ctx context.Context, args *graph
 	}
 
 	if userID != 0 {
-		return r.createBatchChangesUserCredential(ctx, args.ExternalServiceURL, extsvc.KindToType(kind), userID, args.Credential, args.Username)
+		return r.createBatchChangesUserCredential(ctx, createBatchChangesUserCredentialArgs{
+			externalServiceURL:  args.ExternalServiceURL,
+			externalServiceType: extsvc.KindToType(kind),
+			userID:              userID,
+			credential:          args.Credential,
+			username:            args.Username,
+		})
 	}
 
-	return r.createBatchChangesSiteCredential(ctx, args.ExternalServiceURL, extsvc.KindToType(kind), args.Credential, args.Username)
+	return r.createBatchChangesSiteCredential(ctx, createBatchChangesSiteCredentialArgs{
+		externalServiceURL:  args.ExternalServiceURL,
+		externalServiceType: extsvc.KindToType(kind),
+		credential:          args.Credential,
+		username:            args.Username,
+	})
 }
 
-func (r *Resolver) createBatchChangesUserCredential(ctx context.Context, externalServiceURL, externalServiceType string, userID int32, credential string, username *string) (graphqlbackend.BatchChangesCredentialResolver, error) {
+type createBatchChangesUserCredentialArgs struct {
+	username             *string
+	credential           string
+	optInToCommitSigning bool
+	externalServiceURL   string
+	externalServiceType  string
+	userID               int32
+}
+
+func (r *Resolver) createBatchChangesUserCredential(ctx context.Context, args createBatchChangesUserCredentialArgs) (graphqlbackend.BatchChangesCredentialResolver, error) {
 	// 🚨 SECURITY: Check that the requesting user can create the credential.
-	if err := auth.CheckSiteAdminOrSameUser(ctx, r.store.DatabaseDB(), userID); err != nil {
+	if err := auth.CheckSiteAdminOrSameUser(ctx, r.store.DatabaseDB(), args.userID); err != nil {
 		return nil, err
 	}
 
 	// Throw error documented in schema.graphql.
 	userCredentialScope := database.UserCredentialScope{
 		Domain:              database.UserCredentialDomainBatches,
-		ExternalServiceID:   externalServiceURL,
-		ExternalServiceType: externalServiceType,
-		UserID:              userID,
+		ExternalServiceID:   args.externalServiceURL,
+		ExternalServiceType: args.externalServiceType,
+		UserID:              args.userID,
 	}
 	existing, err := r.store.UserCredentials().GetByScope(ctx, userCredentialScope)
 	if err != nil && !errcode.IsNotFound(err) {
@@ -1173,7 +1193,13 @@ func (r *Resolver) createBatchChangesUserCredential(ctx context.Context, externa
 		return nil, ErrDuplicateCredential{}
 	}
 
-	a, err := r.generateAuthenticatorForCredential(ctx, externalServiceType, externalServiceURL, credential, username)
+	a, err := r.generateAuthenticatorForCredential(ctx, generateAuthenticatorForCredentialArgs{
+		externalServiceType:  args.externalServiceType,
+		externalServiceURL:   args.externalServiceURL,
+		optInToCommitSigning: args.optInToCommitSigning,
+		username:             args.username,
+		credential:           args.credential,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -1185,7 +1211,15 @@ func (r *Resolver) createBatchChangesUserCredential(ctx context.Context, externa
 	return &batchChangesUserCredentialResolver{credential: cred}, nil
 }
 
-func (r *Resolver) createBatchChangesSiteCredential(ctx context.Context, externalServiceURL, externalServiceType string, credential string, username *string) (graphqlbackend.BatchChangesCredentialResolver, error) {
+type createBatchChangesSiteCredentialArgs struct {
+	externalServiceURL   string
+	externalServiceType  string
+	optInToCommitSigning bool
+	credential           string
+	username             *string
+}
+
+func (r *Resolver) createBatchChangesSiteCredential(ctx context.Context, args createBatchChangesSiteCredentialArgs) (graphqlbackend.BatchChangesCredentialResolver, error) {
 	// 🚨 SECURITY: Check that a site credential can only be created
 	// by a site-admin.
 	if err := auth.CheckCurrentUserIsSiteAdmin(ctx, r.store.DatabaseDB()); err != nil {
@@ -1194,8 +1228,8 @@ func (r *Resolver) createBatchChangesSiteCredential(ctx context.Context, externa
 
 	// Throw error documented in schema.graphql.
 	existing, err := r.store.GetSiteCredential(ctx, store.GetSiteCredentialOpts{
-		ExternalServiceType: externalServiceType,
-		ExternalServiceID:   externalServiceURL,
+		ExternalServiceType: args.externalServiceType,
+		ExternalServiceID:   args.externalServiceURL,
 	})
 	if err != nil && err != store.ErrNoResults {
 		return nil, err
@@ -1204,13 +1238,19 @@ func (r *Resolver) createBatchChangesSiteCredential(ctx context.Context, externa
 		return nil, ErrDuplicateCredential{}
 	}
 
-	a, err := r.generateAuthenticatorForCredential(ctx, externalServiceType, externalServiceURL, credential, username)
+	a, err := r.generateAuthenticatorForCredential(ctx, generateAuthenticatorForCredentialArgs{
+		externalServiceType:  args.externalServiceType,
+		externalServiceURL:   args.externalServiceURL,
+		optInToCommitSigning: args.optInToCommitSigning,
+		username:             args.username,
+		credential:           args.credential,
+	})
 	if err != nil {
 		return nil, err
 	}
 	cred := &btypes.SiteCredential{
-		ExternalServiceID:   externalServiceURL,
-		ExternalServiceType: externalServiceType,
+		ExternalServiceID:   args.externalServiceURL,
+		ExternalServiceType: args.externalServiceType,
 	}
 	if err := r.store.CreateSiteCredential(ctx, cred, a); err != nil {
 		return nil, err
@@ -1219,7 +1259,15 @@ func (r *Resolver) createBatchChangesSiteCredential(ctx context.Context, externa
 	return &batchChangesSiteCredentialResolver{credential: cred}, nil
 }
 
-func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, externalServiceType, externalServiceURL, credential string, username *string) (extsvcauth.Authenticator, error) {
+type generateAuthenticatorForCredentialArgs struct {
+	externalServiceType  string
+	externalServiceURL   string
+	credential           string
+	username             *string
+	optInToCommitSigning bool
+}
+
+func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, args generateAuthenticatorForCredentialArgs) (extsvcauth.Authenticator, error) {
 	svc := service.New(r.store)
 
 	var a extsvcauth.Authenticator
@@ -1227,9 +1275,9 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, exter
 	if err != nil {
 		return nil, err
 	}
-	if externalServiceType == extsvc.TypeBitbucketServer {
+	if args.externalServiceType == extsvc.TypeBitbucketServer {
 		// We need to fetch the username for the token, as just an OAuth token isn't enough for some reason..
-		username, err := svc.FetchUsernameForBitbucketServerToken(ctx, externalServiceURL, externalServiceType, credential)
+		username, err := svc.FetchUsernameForBitbucketServerToken(ctx, args.externalServiceURL, args.externalServiceType, args.credential)
 		if err != nil {
 			if bitbucketserver.IsUnauthorized(err) {
 				return nil, &ErrVerifyCredentialFailed{SourceErr: err}
@@ -1237,28 +1285,28 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, exter
 			return nil, err
 		}
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: username, Password: credential},
+			BasicAuth:  extsvcauth.BasicAuth{Username: username, Password: args.credential},
 			PrivateKey: keypair.PrivateKey,
 			PublicKey:  keypair.PublicKey,
 			Passphrase: keypair.Passphrase,
 		}
-	} else if externalServiceType == extsvc.TypeBitbucketCloud {
+	} else if args.externalServiceType == extsvc.TypeBitbucketCloud {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *username, Password: credential},
+			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
 			PrivateKey: keypair.PrivateKey,
 			PublicKey:  keypair.PublicKey,
 			Passphrase: keypair.Passphrase,
 		}
-	} else if externalServiceType == extsvc.TypeAzureDevOps {
+	} else if args.externalServiceType == extsvc.TypeAzureDevOps {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *username, Password: credential},
+			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
 			PrivateKey: keypair.PrivateKey,
 			PublicKey:  keypair.PublicKey,
 			Passphrase: keypair.Passphrase,
 		}
 	} else {
 		a = &extsvcauth.OAuthBearerTokenWithSSH{
-			OAuthBearerToken: extsvcauth.OAuthBearerToken{Token: credential},
+			OAuthBearerToken: extsvcauth.OAuthBearerToken{Token: args.credential},
 			PrivateKey:       keypair.PrivateKey,
 			PublicKey:        keypair.PublicKey,
 			Passphrase:       keypair.Passphrase,
@@ -1266,7 +1314,7 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, exter
 	}
 
 	// Validate the newly created authenticator.
-	if err := svc.ValidateAuthenticator(ctx, externalServiceURL, externalServiceType, a); err != nil {
+	if err := svc.ValidateAuthenticator(ctx, args.externalServiceURL, args.externalServiceType, a); err != nil {
 		return nil, &ErrVerifyCredentialFailed{SourceErr: err}
 	}
 	return a, nil
