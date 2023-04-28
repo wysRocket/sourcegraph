@@ -1707,6 +1707,12 @@ extend type Mutation {
         The credential to be stored. This can never be retrieved through the API and will be stored encrypted.
         """
         credential: String!
+
+        """
+        Opt in to commit signing for the specified external service.
+        Commit signing allows verifying the identity of the author of a commit.
+        """
+        optInToCommitSigning: Boolean
     ): BatchChangesCredential!
 
     """

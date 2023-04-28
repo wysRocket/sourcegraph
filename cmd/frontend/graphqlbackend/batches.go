@@ -171,11 +171,12 @@ type ChangesetEventsConnectionArgs struct {
 }
 
 type CreateBatchChangesCredentialArgs struct {
-	ExternalServiceKind string
-	ExternalServiceURL  string
-	User                *graphql.ID
-	Username            *string
-	Credential          string
+	ExternalServiceKind  string
+	ExternalServiceURL   string
+	User                 *graphql.ID
+	Username             *string
+	Credential           string
+	OptInToCommitSigning bool
 }
 
 type DeleteBatchChangesCredentialArgs struct {
