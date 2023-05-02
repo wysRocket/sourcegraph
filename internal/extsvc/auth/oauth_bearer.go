@@ -22,9 +22,6 @@ type OAuthBearerToken struct {
 	RefreshFunc  func(context.Context, httpcli.Doer, *OAuthBearerToken) (string, string, time.Time, error) `json:"-"`
 	// Number of minutes before expiry when token should be refreshed.
 	NeedsRefreshBuffer int `json:"-"`
-	// OptInToCommitSigning: Whether to enable commit signing for repositories accessed with this credential.
-	// Commit signing allows verifying the identity of the author of a commit.
-	OptInToCommitSigning bool `json:"optInToCommitSigning"`
 }
 
 func (token *OAuthBearerToken) Refresh(ctx context.Context, cli httpcli.Doer) error {
@@ -90,9 +87,9 @@ type OAuthBearerTokenWithSSH struct {
 	PublicKey  string
 	Passphrase string
 
-	// useCommitSigning: Whether to enable commit signing for repositories accessed with this credential.
+	// OptInToCommitSigning: Whether to enable commit signing for repositories accessed with this credential.
 	// Commit signing allows verifying the identity of the author of a commit.
-	useCommitSigning bool
+	OptInToCommitSigning bool
 }
 
 var (
@@ -114,5 +111,5 @@ func (token *OAuthBearerTokenWithSSH) Hash() string {
 }
 
 func (token *OAuthBearerTokenWithSSH) UseCommitSigning() bool {
-	return token.useCommitSigning
+	return token.OptInToCommitSigning
 }

@@ -1288,31 +1288,35 @@ func (r *Resolver) generateAuthenticatorForCredential(ctx context.Context, args 
 			return nil, err
 		}
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: username, Password: args.credential, OptInToCommitSigning: args.optInToCommitSigning},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
 		}
 	} else if args.externalServiceType == extsvc.TypeBitbucketCloud {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential, OptInToCommitSigning: args.optInToCommitSigning},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
 		}
 	} else if args.externalServiceType == extsvc.TypeAzureDevOps {
 		a = &extsvcauth.BasicAuthWithSSH{
-			BasicAuth:  extsvcauth.BasicAuth{Username: *args.username, Password: args.credential, OptInToCommitSigning: args.optInToCommitSigning},
-			PrivateKey: keypair.PrivateKey,
-			PublicKey:  keypair.PublicKey,
-			Passphrase: keypair.Passphrase,
+			BasicAuth:            extsvcauth.BasicAuth{Username: *args.username, Password: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
 		}
 	} else {
 		a = &extsvcauth.OAuthBearerTokenWithSSH{
-			OAuthBearerToken: extsvcauth.OAuthBearerToken{Token: args.credential, OptInToCommitSigning: args.optInToCommitSigning},
-			PrivateKey:       keypair.PrivateKey,
-			PublicKey:        keypair.PublicKey,
-			Passphrase:       keypair.Passphrase,
+			OAuthBearerToken:     extsvcauth.OAuthBearerToken{Token: args.credential},
+			PrivateKey:           keypair.PrivateKey,
+			PublicKey:            keypair.PublicKey,
+			Passphrase:           keypair.Passphrase,
+			OptInToCommitSigning: args.optInToCommitSigning,
 		}
 	}
 
