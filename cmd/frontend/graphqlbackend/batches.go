@@ -176,7 +176,7 @@ type CreateBatchChangesCredentialArgs struct {
 	User                 *graphql.ID
 	Username             *string
 	Credential           string
-	OptInToCommitSigning *bool
+	OptInToCommitSigning bool
 }
 
 type DeleteBatchChangesCredentialArgs struct {
@@ -566,6 +566,7 @@ type BatchChangesCredentialResolver interface {
 	SSHPublicKey(ctx context.Context) (*string, error)
 	CreatedAt() gqlutil.DateTime
 	IsSiteCredential() bool
+	UseCommitSigning(ctx context.Context) (bool, error)
 }
 
 type ChangesetCountsArgs struct {

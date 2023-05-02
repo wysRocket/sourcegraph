@@ -61,6 +61,9 @@ type AuthenticatorWithSSH interface {
 	// authorized_keys file format. This is usually accepted by code hosts to
 	// allow access to git over SSH.
 	SSHPublicKey() (publicKey string)
+
+	// UseCommitSigning Indicates whether commits created with this credential should be signed.
+	UseCommitSigning() bool
 }
 
 // URLAuthenticator instances allow adding credentials to URLs.

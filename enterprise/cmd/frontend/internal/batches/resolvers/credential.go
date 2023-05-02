@@ -88,9 +88,9 @@ func (c *batchChangesUserCredentialResolver) ExternalServiceURL() string {
 }
 
 func (c *batchChangesUserCredentialResolver) SSHPublicKey(ctx context.Context) (*string, error) {
-	a, err := c.credential.Authenticator(ctx)
+	a, err := c.authenticator(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "retrieving authenticator")
+		return nil, err
 	}
 
 	if ssh, ok := a.(auth.AuthenticatorWithSSH); ok {
@@ -108,8 +108,25 @@ func (c *batchChangesUserCredentialResolver) IsSiteCredential() bool {
 	return false
 }
 
+func (c *batchChangesUserCredentialResolver) UseCommitSigning(ctx context.Context) (bool, error) {
+	a, err := c.authenticator(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	if sshAuth, ok := a.(auth.AuthenticatorWithSSH); ok {
+		return sshAuth.UseCommitSigning(), nil
+	}
+
+	return false, nil
+}
+
 func (c *batchChangesUserCredentialResolver) authenticator(ctx context.Context) (auth.Authenticator, error) {
-	return c.credential.Authenticator(ctx)
+	a, err := c.credential.Authenticator(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieving authenticator")
+	}
+	return a, nil
 }
 
 type batchChangesSiteCredentialResolver struct {
@@ -132,9 +149,9 @@ func (c *batchChangesSiteCredentialResolver) ExternalServiceURL() string {
 }
 
 func (c *batchChangesSiteCredentialResolver) SSHPublicKey(ctx context.Context) (*string, error) {
-	a, err := c.credential.Authenticator(ctx)
+	a, err := c.authenticator(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "decrypting authenticator")
+		return nil, err
 	}
 
 	if ssh, ok := a.(auth.AuthenticatorWithSSH); ok {
@@ -152,6 +169,23 @@ func (c *batchChangesSiteCredentialResolver) IsSiteCredential() bool {
 	return true
 }
 
+func (c *batchChangesSiteCredentialResolver) UseCommitSigning(ctx context.Context) (bool, error) {
+	a, err := c.authenticator(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	if sshAuth, ok := a.(auth.AuthenticatorWithSSH); ok {
+		return sshAuth.UseCommitSigning(), nil
+	}
+
+	return false, nil
+}
+
 func (c *batchChangesSiteCredentialResolver) authenticator(ctx context.Context) (auth.Authenticator, error) {
-	return c.credential.Authenticator(ctx)
+	a, err := c.credential.Authenticator(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "retrieving authenticator")
+	}
+	return a, nil
 }

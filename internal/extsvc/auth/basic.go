@@ -34,8 +34,9 @@ type BasicAuthWithSSH struct {
 	PublicKey  string
 	Passphrase string
 
-	OptInToCommitSigning bool
-	SigningKey           *SigningKey
+	// useCommitSigning: Whether to enable commit signing for repositories accessed with this credential.
+	// Commit signing allows verifying the identity of the author of a commit.
+	useCommitSigning bool
 }
 
 var _ Authenticator = &BasicAuthWithSSH{}
@@ -52,4 +53,8 @@ func (basic *BasicAuthWithSSH) SSHPublicKey() string {
 func (basic *BasicAuthWithSSH) Hash() string {
 	shaSum := sha256.Sum256([]byte(basic.Username + basic.Password + basic.PrivateKey + basic.Passphrase + basic.PublicKey))
 	return hex.EncodeToString(shaSum[:])
+}
+
+func (token *BasicAuthWithSSH) UseCommitSigning() bool {
+	return token.useCommitSigning
 }
