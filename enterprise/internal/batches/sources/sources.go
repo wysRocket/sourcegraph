@@ -175,16 +175,32 @@ func GitserverPushConfig(repo *types.Repo, au auth.Authenticator) (*protocol.Pus
 			return nil, ErrNoSSHCredential
 		}
 		privateKey, passphrase := sshA.SSHPrivateKey()
-		return &protocol.PushConfig{
-			RemoteURL:  cloneURL.String(),
-			PrivateKey: privateKey,
-			Passphrase: passphrase,
-		}, nil
+		config := &protocol.PushConfig{
+			RemoteURL:        cloneURL.String(),
+			PrivateKey:       privateKey,
+			Passphrase:       passphrase,
+			UseCommitSigning: sshA.UseCommitSigning(),
+		}
+
+		if sshA.UseCommitSigning() {
+			config.CommitSigningConfig = &protocol.CommitSigningConfig{
+				Key:     sshA.SSHPublicKey(),
+				KeyType: protocol.SSHSigningKeyType,
+			}
+		}
+
+		return config, nil
 	}
 
+	var (
+		useCommitSigning bool
+		signingKey       string
+	)
 	extSvcType := repo.ExternalRepo.ServiceType
 	switch av := au.(type) {
 	case *auth.OAuthBearerTokenWithSSH:
+		useCommitSigning = av.UseCommitSigning()
+		signingKey = av.SSHPublicKey()
 		if err := setOAuthTokenAuth(cloneURL, extSvcType, av.Token); err != nil {
 			return nil, err
 		}
@@ -194,6 +210,8 @@ func GitserverPushConfig(repo *types.Repo, au auth.Authenticator) (*protocol.Pus
 		}
 
 	case *auth.BasicAuthWithSSH:
+		useCommitSigning = av.UseCommitSigning()
+		signingKey = av.SSHPublicKey()
 		if err := setBasicAuth(cloneURL, extSvcType, av.Username, av.Password); err != nil {
 			return nil, err
 		}
@@ -205,7 +223,15 @@ func GitserverPushConfig(repo *types.Repo, au auth.Authenticator) (*protocol.Pus
 		return nil, ErrNoPushCredentials{CredentialsType: fmt.Sprintf("%T", au)}
 	}
 
-	return &protocol.PushConfig{RemoteURL: cloneURL.String()}, nil
+	config := &protocol.PushConfig{RemoteURL: cloneURL.String(), UseCommitSigning: useCommitSigning}
+	if useCommitSigning {
+		config.CommitSigningConfig = &protocol.CommitSigningConfig{
+			KeyType: protocol.SSHSigningKeyType,
+			Key:     signingKey,
+		}
+	}
+
+	return config, nil
 }
 
 // ToDraftChangesetSource returns a DraftChangesetSource, if the underlying

@@ -432,6 +432,19 @@ type PatchCommitInfo struct {
 	Date           time.Time
 }
 
+type CommitSigningKeyType string
+
+const (
+	SSHSigningKeyType CommitSigningKeyType = "ssh"
+	GPGSigningKeyType CommitSigningKeyType = "gpg"
+)
+
+type CommitSigningConfig struct {
+	// PublicKey is the public GPG/SSH key used to sign commits.
+	PublicKey string
+	KeyType   CommitSigningKeyType
+}
+
 // PushConfig provides the configuration required to push one or more commits to
 // a code host.
 type PushConfig struct {
@@ -449,8 +462,12 @@ type PushConfig struct {
 	// when passing PrivateKey.
 	Passphrase string
 
-	// OptInToCommitSigning indicates whether commit signing is enabled for this operation.
-	OptInToCommitSigning bool
+	// UseCommitSigning indicates whether commit signing is enabled for this operation.
+	UseCommitSigning bool
+
+	// CommitSigningConfig specifies the configuration for signing commits. If nil, commit
+	// signing will not be performed.
+	CommitSigningConfig *CommitSigningConfig
 }
 
 // CreateCommitFromPatchResponse is the response type returned after creating
