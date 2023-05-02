@@ -448,6 +448,9 @@ type PushConfig struct {
 	// Passphrase is the passphrase to decrypt the private key. It is required
 	// when passing PrivateKey.
 	Passphrase string
+
+	// OptInToCommitSigning indicates whether commit signing is enabled for this operation.
+	OptInToCommitSigning bool
 }
 
 // CreateCommitFromPatchResponse is the response type returned after creating
