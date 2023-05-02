@@ -24,6 +24,7 @@ export const CREDENTIAL_FIELDS_FRAGMENT = gql`
         id
         sshPublicKey
         isSiteCredential
+        useCommitSigning
     }
 `
 
@@ -34,6 +35,7 @@ export const CREATE_BATCH_CHANGES_CREDENTIAL = gql`
         $username: String
         $externalServiceKind: ExternalServiceKind!
         $externalServiceURL: String!
+        $optInToCommitSigning: Boolean!
     ) {
         createBatchChangesCredential(
             user: $user
@@ -41,6 +43,7 @@ export const CREATE_BATCH_CHANGES_CREDENTIAL = gql`
             username: $username
             externalServiceKind: $externalServiceKind
             externalServiceURL: $externalServiceURL
+            optInToCommitSigning: $optInToCommitSigning
         ) {
             ...BatchChangesCredentialFields
         }

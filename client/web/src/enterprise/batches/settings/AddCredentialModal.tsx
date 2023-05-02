@@ -115,6 +115,7 @@ export const AddCredentialModal: React.FunctionComponent<React.PropsWithChildren
                         username: requiresUsername ? username : null,
                         externalServiceKind,
                         externalServiceURL,
+                        optInToCommitSigning: true,
                     },
                 })
 
