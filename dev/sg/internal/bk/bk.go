@@ -276,13 +276,12 @@ func hasState(job *buildkite.Job, state string) bool {
 
 func (c *Client) JobRawLog(job *buildkite.Job) ([]byte, error) {
 	u := *job.RawLogsURL
-	u = strings.TrimSuffix(u, ".txt") + ".html"
 	req, err := c.bk.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Accept", "text/html")
+	req.Header.Set("Accept", "text/plain")
 
 	buf := bytes.NewBuffer(nil)
 	resp, err := c.bk.Do(req, buf)

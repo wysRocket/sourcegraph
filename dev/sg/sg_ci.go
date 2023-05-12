@@ -11,8 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/acarl005/stripansi"
-
 	"github.com/buildkite/go-buildkite/v3/buildkite"
 	"github.com/gen2brain/beeep"
 	"github.com/grafana/regexp"
@@ -66,6 +64,8 @@ var (
 		Usage:   "Select a custom Buildkite `pipeline` in the Sourcegraph org",
 		Value:   "sourcegraph",
 	}
+	// Buildkite's timestamp thingo causes log lines to not render in terminal
+	bkTimestamp = regexp.MustCompile(`\x1b_bk;t=\d{13}\x07`) // \x1b is ESC, \x07 is BEL
 )
 
 // Register the following flags on all commands that can target different builds!
@@ -600,8 +600,6 @@ From there, you can start exploring logs with the Grafana explore panel.
 			logsOut := cmd.String("out")
 			switch logsOut {
 			case ciLogsOutTerminal, ciLogsOutSimple:
-				// Buildkite's timestamp thingo causes log lines to not render in terminal
-				bkTimestamp := regexp.MustCompile(`\x1b_bk;t=\d{13}\x07`) // \x1b is ESC, \x07 is BEL
 				for _, log := range logs {
 					block := std.Out.Block(output.Linef(output.EmojiInfo, output.StyleUnderline, "%s",
 						*log.JobMeta.Name))
@@ -985,7 +983,6 @@ func getFailedJobLogs(cmd *cli.Context) (*buildkite.Job, []byte, error) {
 		return nil, nil, err
 	}
 
-	os.WriteFile("output.txt", logs, os.ModePerm)
 	return failedJob, logs, nil
 }
 
@@ -1004,9 +1001,8 @@ func codyPreamble() []claude.Message {
 In your responses, obey the following rules:
 - Be as brief and concise as possible without losing clarity.
 - Refer to the bazel documents that I have provided for you.
-- Provide an explanation on why the build failed.
-- Provide possible solutions I can try to rectify why the build failed.
-- All code snippets have to be markdown-formatted without that language specifier, and placed in-between triple backticks like this %s%s%s.
+- For any build failures, provde me with a command to recreate the failure.
+- All code snippets, commands and build output have to be markdown-formatted without that language specifier, and placed in-between triple backticks like this %s%s%s.
 - Answer questions only if you know the answer or can make a well-informed guess. Otherwise, tell me you don't know and what context I need to provide you for you to answer the question.
 - Only reference file names or URLs if you are sure they exist.
 `, backTick, backTick, backTick),
@@ -1015,6 +1011,7 @@ In your responses, obey the following rules:
 			Speaker: "assistant",
 			Text: fmt.Sprintf(`Understood. I am Cody, an AI assistant made by Sourcegraph to help with programming tasks.
 I will answer questions, explain code, debug errors, and generate code as concisely and clearly as possible.
+I will provide solutions on how to solve build and test failures.
 My responses will be formatted using Markdown syntax for code blocks without language specifiers.
 I will acknowledge when I don't know an answer or need more context.
 I have access to the %s repository and can answer questions about its files.`, "`sourcegraph`"),
@@ -1022,8 +1019,8 @@ I have access to the %s repository and can answer questions about its files.`, "
 	}
 }
 
-func extractContextWindow(content []string, start, window int) ([]string, int, int) {
-	begin := start - window
+func extractContextWindow(content []string, start, window int) (string, int, int) {
+	begin := start - 5
 	if begin < 0 {
 		begin = 0
 	}
@@ -1032,19 +1029,31 @@ func extractContextWindow(content []string, start, window int) ([]string, int, i
 	if end > len(content) {
 		end = len(content) - 1
 	}
+	final := []string{}
+	section := strings.TrimSpace(strings.Join(content[begin:end], ""))
+	for _, l := range strings.Split(section, "\n") {
+		l = strings.TrimSpace(l)
+		if !strings.Contains(l, "Fetching") && len(l) > 0 {
+			final = append(final, l)
+		}
+	}
 
-	return content[begin:end], begin, end
+	return strings.Join(final, ""), begin, end
 }
 
 func scanLog(log []byte, window int) []string {
 	windows := make([]string, 0)
-	lines := strings.Split(string(log), "\n")
-	for i := 0; i < len(lines); i++ {
+	content := string(log)
+	content = bkTimestamp.ReplaceAllString(content, "")
+	content = bk.CleanANSI(content)
+	lines := strings.Split(content, "\n")
+
+	for i := 0; i < len(lines)-1; i++ {
 		l := lines[i]
-		if strings.HasPrefix(l, "FAIL:") || strings.HasPrefix(l, "error") || strings.HasPrefix(l, "ERROR") {
-			w, _, end := extractContextWindow(lines, i, window)
-			std.Out.WriteMarkdown(strings.Join(w, ""))
-			windows = append(windows, w...)
+		if strings.Contains(l, "FAIL:") || strings.Contains(l, "error:") || strings.Contains(l, "ERROR ") || strings.Contains(l, "Error: ") {
+			ctx, _, end := extractContextWindow(lines, i, window)
+
+			windows = append(windows, ctx)
 			i = end + 1
 		}
 	}
@@ -1101,7 +1110,7 @@ func askCody(cmd *cli.Context) error {
 			Text: fmt.Sprintf(`Here are the snippets from the CI log ouput:
 %sbash
 %s
-%s`, codeBlock, strings.Join(windows, "\n"), codeBlock),
+%s`, codeBlock, strings.Join(windows, ""), codeBlock),
 		},
 		{
 			Speaker: "assistant",
@@ -1120,17 +1129,13 @@ func askCody(cmd *cli.Context) error {
 	messages = append(messages, logMessages...)
 	messages = append(messages, claude.Message{
 		Speaker: "human",
-		Text:    "The build failed because",
+		Text:    fmt.Sprintf("Describe why the step \"%s\" build failed and provide the relevant output for your reasoning.", *job.Name),
 	})
 
 	cli := claude.NewClient(srcURL, srcToken, nil)
 
-	params := claude.DefaultCompletionParameters(messages)
+	params := claude.DefaultCompletionParameters(append(messages, claude.Message{Speaker: "assistant", Text: "The build failed"}))
 
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
 	println("Sending the following to Cody")
 	//blk := std.Out.Block(output.Line("📔", output.StyleBold, "Prompt"))
 	for _, m := range messages {
@@ -1138,28 +1143,47 @@ func askCody(cmd *cli.Context) error {
 		if m.Speaker == "human" {
 			who = "🗣️"
 		}
-		std.Out.WriteCode("bash", fmt.Sprintf("%s: %v\n\n", who, m.Text))
+		std.Out.WriteCode("bash", fmt.Sprintf("%s: %v", who, m.Text))
 	}
 
-	//blk.Close()
-
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
-	println("-----")
-	os.Exit(1)
 	start := time.Now()
 	std.Out.WriteNoticef("Asking Cody 🤖 why %s failed...", *job.Name)
-	resChan, _ := cli.StreamCompletion(context.Background(), params, true)
+	resChan, err := cli.StreamCompletion(context.Background(), params, true)
+	if err != nil {
+		std.Out.WriteFailuref("failed to stream completion: %v", err)
+		return err
+	}
 	result := ""
 	for res := range resChan {
 		result = res
 	}
 	block := std.Out.Block(output.Styledf(output.StyleSuggestion, "Answer from Cody"))
+	block.WriteMarkdown(result, output.MarkdownNoMargin, output.MarkdownIndent(2))
+	block.Close()
+
+	messages = append(messages, []claude.Message{
+		{
+			Speaker: "assistant",
+			Text:    result,
+		}, {
+			Speaker: "human",
+			Text:    "What steps can I take to fix the build?",
+		}, {
+			Speaker: "assistant",
+			Text:    "The build can be fixed",
+		}}...)
+	std.Out.WriteNoticef("Asking Cody 🤖 how %s can be fixed...", *job.Name)
+	params = claude.DefaultCompletionParameters(messages)
+	resChan, err = cli.StreamCompletion(context.Background(), params, true)
+	if err != nil {
+		std.Out.WriteFailuref("failed to stream completion: %v", err)
+		return err
+	}
+	result = ""
+	for res := range resChan {
+		result = res
+	}
+	block = std.Out.Block(output.Styledf(output.StyleSuggestion, "Answer from Cody"))
 	block.WriteMarkdown(result, output.MarkdownNoMargin, output.MarkdownIndent(2))
 	block.Close()
 	fmt.Println(time.Since(start))
