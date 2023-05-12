@@ -11,10 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/acarl005/stripansi"
+
 	"github.com/buildkite/go-buildkite/v3/buildkite"
 	"github.com/gen2brain/beeep"
 	"github.com/grafana/regexp"
 	"github.com/pjlast/llmsp/claude"
+	"github.com/pjlast/llmsp/sourcegraph/embeddings"
 	"github.com/urfave/cli/v2"
 
 	sgrun "github.com/sourcegraph/run"
@@ -974,90 +977,181 @@ func getFailedJobLogs(cmd *cli.Context) (*buildkite.Job, []byte, error) {
 			failedJob = j
 		}
 	}
+	if failedJob == nil {
+		return nil, nil, errors.Newf("no failed jobs found on build %d", *build.Number)
+	}
 	logs, err := client.JobRawLog(failedJob)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	os.WriteFile("output.txt", logs, os.ModePerm)
 	return failedJob, logs, nil
 }
 
+func codyPreamble() []claude.Message {
+	backTick := "`"
+	return []claude.Message{
+		{
+			Speaker: "human",
+			Text: fmt.Sprintf(`You are Cody, an AI-powered coding assistant created by Sourcegraph. You work inside a Unix command line. You perform the following actions:
+- Answer general programming questions.
+- Answer questions about the code that I have provided to you.
+- Answer questions about errors and problems present in a CI pipeline log that I have provided to you.
+- Explain why an error occured based on the log output that I have provided you.
+- Provide commands to recreate the error from the log output locally.
+- Based on the code diff that I have provided to you, explain why an error occured if applicable.
+In your responses, obey the following rules:
+- Be as brief and concise as possible without losing clarity.
+- Refer to the bazel documents that I have provided for you.
+- Provide an explanation on why the build failed.
+- Provide possible solutions I can try to rectify why the build failed.
+- All code snippets have to be markdown-formatted without that language specifier, and placed in-between triple backticks like this %s%s%s.
+- Answer questions only if you know the answer or can make a well-informed guess. Otherwise, tell me you don't know and what context I need to provide you for you to answer the question.
+- Only reference file names or URLs if you are sure they exist.
+`, backTick, backTick, backTick),
+		},
+		{
+			Speaker: "assistant",
+			Text: fmt.Sprintf(`Understood. I am Cody, an AI assistant made by Sourcegraph to help with programming tasks.
+I will answer questions, explain code, debug errors, and generate code as concisely and clearly as possible.
+My responses will be formatted using Markdown syntax for code blocks without language specifiers.
+I will acknowledge when I don't know an answer or need more context.
+I have access to the %s repository and can answer questions about its files.`, "`sourcegraph`"),
+		},
+	}
+}
+
+func extractContextWindow(content []string, start, window int) ([]string, int, int) {
+	begin := start - window
+	if begin < 0 {
+		begin = 0
+	}
+
+	end := start + (window * 2)
+	if end > len(content) {
+		end = len(content) - 1
+	}
+
+	return content[begin:end], begin, end
+}
+
+func scanLog(log []byte, window int) []string {
+	windows := make([]string, 0)
+	lines := strings.Split(string(log), "\n")
+	for i := 0; i < len(lines); i++ {
+		l := lines[i]
+		if strings.HasPrefix(l, "FAIL:") || strings.HasPrefix(l, "error") || strings.HasPrefix(l, "ERROR") {
+			w, _, end := extractContextWindow(lines, i, window)
+			std.Out.WriteMarkdown(strings.Join(w, ""))
+			windows = append(windows, w...)
+			i = end + 1
+		}
+	}
+
+	return windows
+}
+
+func getEmbeddings(client *embeddings.Client, repo string, query string) ([]claude.Message, error) {
+	repoID, err := client.GetRepoID(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := client.GetEmbeddings(repoID, query, 0, 2)
+	if err != nil {
+		return nil, err
+	}
+
+	msgs := []claude.Message{}
+	backTick := "`"
+	codeBlock := "```"
+	for _, v := range result.CodeResults {
+		interaction := []claude.Message{
+			{
+				Speaker: "human",
+				Text: fmt.Sprintf(`Here is the content of documentation found at %s:
+				%s
+				%s
+				%s`, backTick+v.FileName+backTick, codeBlock, v.Content, codeBlock),
+			},
+			{
+				Speaker: "assistant",
+				Text:    "Ok.",
+			},
+		}
+		msgs = append(msgs, interaction...)
+	}
+
+	return msgs, nil
+}
+
 func askCody(cmd *cli.Context) error {
-	std.Out.WriteNoticef("Fetching log of the first job failure on build %d", cmd.Int("build"))
+	//std.Out.WriteNoticef("Fetching log of the first job failure on build %d", cmd.Int("build"))
 	job, logs, err := getFailedJobLogs(cmd)
 	if err != nil {
 		return errors.Newf("failed to get failed job logs for build %s", cmd.Int("build"))
 	}
 
-	ciRefContent, err := os.ReadFile("./doc/dev/background-information/ci/reference.md")
-	if err != nil {
-		return errors.Newf("failed to read ci reference.md: %v", err)
-	}
-	bazelDocs, err := os.ReadFile("./doc/dev/background-information/bazel.md")
-	if err != nil {
-		return errors.Newf("failed to read ci bazel.md: %v", err)
-	}
-	bazelClientDocs, err := os.ReadFile("./doc/dev/background-information/bazel_web.md")
-	if err != nil {
-		return errors.Newf("failed to read ci bazel_web.md: %v", err)
+	windows := scanLog(logs, 20)
+	codeBlock := "```"
+	logMessages := []claude.Message{
+		{
+			Speaker: "human",
+			Text: fmt.Sprintf(`Here are the snippets from the CI log ouput:
+%sbash
+%s
+%s`, codeBlock, strings.Join(windows, "\n"), codeBlock),
+		},
+		{
+			Speaker: "assistant",
+			Text:    "Ok.",
+		},
 	}
 
 	srcURL := os.Getenv("SRC_URL")
 	srcToken := os.Getenv("SRC_TOKEN")
-	cli := claude.NewClient(srcURL, srcToken, nil)
-	messages := []claude.Message{
-		{
-			Speaker: "ASSISTANT",
-			Text: `I am Cody, an AI-powered coding assistant developed by Sourcegraph. I operate inside the Sourcegraph repository. My task is to help programmers with debugging tasks. I specialize in diagnosing CI failures.
-I have access to all files present in your Sourcegraph repository.
-I am able to suggest code changes and commands to run.
-I will generate suggestions as concisely and clearly as possible.
-I only suggest something if I am certain about my answer.`,
-		},
-		{
-			Speaker: "HUMAN",
-			Text:    fmt.Sprintf(`Here is some extra information about our CI Pipeline. Reference this information when you diagnose any problems I send to you about steps failing on the CI Pipeline: %s`, ciRefContent),
-		},
-		{
-			Speaker: claude.Assistant,
-			Text:    "Ok.",
-		},
-		{
-			Speaker: "HUMAN",
-			Text:    fmt.Sprintf(`Here is some extra information about Bazel. Reference this information when you diagnose any problems I send to you about things failing with Bazel: %s`, bazelDocs),
-		},
-		{
-			Speaker: claude.Assistant,
-			Text:    "Ok.",
-		},
-		{
-			Speaker: "HUMAN",
-			Text:    fmt.Sprintf(`Here is some extra information about our Client code using Bazel. Reference this information when you diagnose any problems I send to you about things failing with Bazel: %s`, bazelClientDocs),
-		},
-		{
-			Speaker: claude.Assistant,
-			Text:    "Ok.",
-		},
-		{
-			Speaker: "HUMAN",
-			Text:    fmt.Sprintf(`"Here is the failed job log output for step %s: %s`, *job.Name, logs),
-		},
-		{
-			Speaker: claude.Assistant,
-			Text:    "Ok.",
-		},
-		{
-			Speaker: "HUMAN",
-			Text:    `When suggesting fixes please use bazel commands equivalent if they exist, and if more debugging is needed they should reach out to @dev-experience-support. Show my why the build failed and suggest fixes I should attempt. If tests failed, show me which tests I should rerun and how`,
-		},
-		{
-			Speaker: "ASSISTANT",
-			Text:    "```markdown",
-		},
+	embeddingsClient := embeddings.NewClient(srcToken, srcToken, nil)
+
+	messages := codyPreamble()
+	if embeddings, err := getEmbeddings(embeddingsClient, "sourcegraph/sourcegraph", "file:bazel.*.md"); err != nil {
+		messages = append(messages, embeddings...)
 	}
+	messages = append(messages, logMessages...)
+	messages = append(messages, claude.Message{
+		Speaker: "human",
+		Text:    "The build failed because",
+	})
+
+	cli := claude.NewClient(srcURL, srcToken, nil)
 
 	params := claude.DefaultCompletionParameters(messages)
 
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	println("Sending the following to Cody")
+	//blk := std.Out.Block(output.Line("📔", output.StyleBold, "Prompt"))
+	for _, m := range messages {
+		var who = "🤖"
+		if m.Speaker == "human" {
+			who = "🗣️"
+		}
+		std.Out.WriteCode("bash", fmt.Sprintf("%s: %v\n\n", who, m.Text))
+	}
+
+	//blk.Close()
+
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	println("-----")
+	os.Exit(1)
 	start := time.Now()
 	std.Out.WriteNoticef("Asking Cody 🤖 why %s failed...", *job.Name)
 	resChan, _ := cli.StreamCompletion(context.Background(), params, true)

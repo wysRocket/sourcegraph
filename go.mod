@@ -263,13 +263,17 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/go-redsync/redsync/v4 v4.8.1
+require (
+	github.com/go-redsync/redsync/v4 v4.8.1
+	github.com/pjlast/llmsp v0.1.0-beta.1
+)
 
 require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/trace v1.8.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.11.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.36.0 // indirect
+	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/alexflint/go-arg v1.4.2 // indirect
 	github.com/alexflint/go-scalar v1.0.0 // indirect
@@ -316,64 +320,6 @@ require (
 	go.opentelemetry.io/collector/consumer v0.71.0 // indirect
 	go.opentelemetry.io/collector/featuregate v0.71.0 // indirect
 	go.uber.org/goleak v1.2.0 // indirect
-)
-
-require (
-	code.gitea.io/gitea v1.18.0
-	cuelang.org/go v0.4.3
-	github.com/alecthomas/chroma/v2 v2.4.0
-	github.com/becheran/wildmatch-go v1.0.0
-	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff
-	github.com/c2h5oh/datasize v0.0.0-20220606134207-859f65c6625b
-	github.com/coreos/go-iptables v0.6.0
-	github.com/crewjam/saml/samlidp v0.0.0-20221211125903-d951aa2d145a
-	github.com/di-wu/xsd-datetime v1.0.0
-	github.com/elimity-com/scim v0.0.0-20220121082953-15165b1a61c8
-	github.com/fergusstrange/embedded-postgres v1.19.0
-	github.com/frankban/quicktest v1.14.3
-	github.com/fullstorydev/grpcui v1.3.1
-	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/google/go-github/v47 v47.1.0
-	github.com/grpc-ecosystem/go-grpc-middleware/providers/openmetrics/v2 v2.0.0-rc.3
-	github.com/hashicorp/go-version v1.6.0
-	github.com/hexops/autogold/v2 v2.1.0
-	github.com/k3a/html2text v1.1.0
-	github.com/opsgenie/opsgenie-go-sdk-v2 v1.2.13
-	github.com/pandatix/go-cvss v0.5.2
-	github.com/pjlast/llmsp v0.0.0-20230414080540-f0540c8273e6
-	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
-	github.com/scim2/filter-parser/v2 v2.2.0
-	github.com/sourcegraph/conc v0.2.0
-	github.com/sourcegraph/mountinfo v0.0.0-20230106004439-7026e28cef67
-	github.com/sourcegraph/sourcegraph/monitoring v0.0.0-20230124144931-b2d81b1accb6
-	github.com/wk8/go-ordered-map/v2 v2.1.5
-	github.com/xanzy/go-gitlab v0.80.0
-	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87
-	go.bobheadxi.dev/streamline v1.2.2
-	golang.org/x/exp v0.0.0-20221208152030-732eee02a75a
-	gotest.tools v2.2.0+incompatible
-)
-
-replace (
-	// We maintain a potentially long-term fork of embedded-postgres for
-	// Sourcegraph App. We add features like unix sockets. If this replace
-	// directive still exists in 2024, lets consider hard forking.
-	github.com/fergusstrange/embedded-postgres => github.com/sourcegraph/embedded-postgres v1.19.1-0.20230313141935-8f62b6947f2c
-
-	// As of https://github.com/grpc-ecosystem/go-grpc-middleware/blob/7ac0846398432dee083fd8bc4ad7abacf8147ff2/providers/openmetrics/go.mod#L7,
-	// the latest release of the gRPC Prometheus middleware depends on a version of go-grpc-middleware that is two years old, and
-	// is incompatible with the latest gRPC releases.
-	//
-	// The parent project is currently working around this by using a local replace directive in their go.mod file (which ensures
-	// that they always use the current version of go-grpc-middleware that they're developing). Until this issue is fixed,
-	// we'll need to ensure that we explicitly depend on the latest version of go-grpc-middleware (v2.0.0-rc.3) as of this writing.
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 => github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.0.0-rc.3
-
-)
-
-require (
-	github.com/sourcegraph/zoekt v0.0.0-20230405161007-b247fb51dece
-	github.com/stretchr/objx v0.5.0 // indirect
 )
 
 require (
