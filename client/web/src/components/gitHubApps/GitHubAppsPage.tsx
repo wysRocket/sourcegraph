@@ -20,7 +20,11 @@ import { GITHUB_APPS_QUERY } from './backend'
 import { GitHubAppCard } from './GitHubAppCard'
 
 export const GitHubAppsPage: React.FC = () => {
-    const { data, loading, error, refetch } = useQuery<GitHubAppsResult, GitHubAppsVariables>(GITHUB_APPS_QUERY, {})
+    const { data, loading, error, refetch } = useQuery<GitHubAppsResult, GitHubAppsVariables>(GITHUB_APPS_QUERY, {
+        variables: {
+            domain: 'repos',
+        },
+    })
     const gitHubApps = useMemo(() => data?.gitHubApps?.nodes ?? [], [data])
 
     useEffect(() => {
