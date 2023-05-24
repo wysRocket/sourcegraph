@@ -16,13 +16,13 @@ import {
 } from '../FilteredConnection/ui'
 import { PageTitle } from '../PageTitle'
 
-import { GITHUB_APPS_QUERY } from './backend'
+import { GITHUB_APPS_QUERY, GitHubAppDomain } from './backend'
 import { GitHubAppCard } from './GitHubAppCard'
 
 export const GitHubAppsPage: React.FC = () => {
     const { data, loading, error, refetch } = useQuery<GitHubAppsResult, GitHubAppsVariables>(GITHUB_APPS_QUERY, {
         variables: {
-            domain: 'repos',
+            domain: GitHubAppDomain.REPOS,
         },
     })
     const gitHubApps = useMemo(() => data?.gitHubApps?.nodes ?? [], [data])
