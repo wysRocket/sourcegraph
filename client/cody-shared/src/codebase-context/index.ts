@@ -14,6 +14,7 @@ export interface ContextSearchOptions {
 }
 
 export class CodebaseContext {
+    private embeddingResultsError = ''
     constructor(
         private config: Pick<Configuration, 'useContext' | 'serverEndpoint'>,
         private codebase: string | undefined,
@@ -31,19 +32,22 @@ export class CodebaseContext {
 
     public async getContextMessages(query: string, options: ContextSearchOptions): Promise<ContextMessage[]> {
         switch (this.config.useContext) {
-            case 'embeddings' || 'blended':
+            case 'keyword':
+                return this.getKeywordContextMessages(query, options)
+            case 'none':
+                return []
+            default:
                 return this.embeddings
                     ? this.getEmbeddingsContextMessages(query, options)
                     : this.getKeywordContextMessages(query, options)
-            case 'keyword':
-                return this.getKeywordContextMessages(query, options)
-            default:
-                return this.getEmbeddingsContextMessages(query, options)
         }
     }
 
     public checkEmbeddingsConnection(): boolean {
         return !!this.embeddings
+    }
+    public getEmbeddingSearchErrors(): string {
+        return this.embeddingResultsError
     }
 
     public async getSearchResults(
@@ -92,6 +96,7 @@ export class CodebaseContext {
         )
         if (isError(embeddingsSearchResults)) {
             console.error('Error retrieving embeddings:', embeddingsSearchResults)
+            this.embeddingResultsError = `Error retrieving embeddings: ${embeddingsSearchResults}`
             return []
         }
 

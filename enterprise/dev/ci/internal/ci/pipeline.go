@@ -126,39 +126,41 @@ func GeneratePipeline(c Config) (*bk.Pipeline, error) {
 			// TODO: Just hardcode specific images initially
 			WolfiImagesOperations([]string{
 				"batcheshelper",
+				"blobstore",
+				"bundled-executor",
+				"cadvisor",
+				"codeinsights-db",
+				"codeintel-db",
 				"embeddings",
+				"executor",
 				"executor-kubernetes",
 				"frontend",
 				"github-proxy",
 				"gitserver",
-				"llm-proxy",
-				"loadtest",
-				"migrator",
-				"precise-code-intel-worker",
-				"repo-updater",
-				"searcher",
-				// "server",
-				"symbols",
-				"worker",
-				"blobstore",
-				"cadvisor",
-				"codeinsights-db",
-				"codeintel-db",
 				"indexed-searcher",
 				"jaeger-agent",
 				"jaeger-all-in-one",
+				"cody-gateway",
+				"loadtest",
+				"migrator",
 				"node-exporter",
 				"opentelemetry-collector",
 				"postgres-12-alpine",
 				"postgres_exporter",
+				"precise-code-intel-worker",
 				"prometheus",
 				"prometheus-gcp",
 				"redis-cache",
 				"redis-store",
 				"redis_exporter",
+				"repo-updater",
 				"search-indexer",
+				"searcher",
+				"server",
 				"sg",
+				"symbols",
 				"syntax-highlighter",
+				"worker",
 			}, c.Version,
 				c.candidateImageTag(),
 				(numUpdatedBaseImages > 0),
@@ -289,10 +291,11 @@ func GeneratePipeline(c Config) (*bk.Pipeline, error) {
 	case runtype.CandidatesNoTest:
 		imageBuildOps := operations.NewNamedSet("Image builds")
 		imageBuildOps.Append(buildCandidateDockerImage("syntax-highlighter", c.Version, c.candidateImageTag(), false))
+		imageBuildOps.Append(buildCandidateDockerImage("symbols", c.Version, c.candidateImageTag(), false))
 		imageBuildOps.Append(bazelBuildCandidateDockerImages(images.SourcegraphDockerImagesTestDeps, c.Version, c.candidateImageTag(), c.RunType))
 		var deployImages = []string{}
 		for _, image := range images.DeploySourcegraphDockerImages {
-			if image == "syntax-highlighter" {
+			if image == "syntax-highlighter" || image == "symbols" {
 				continue
 			}
 			deployImages = append(deployImages, image)
@@ -351,10 +354,11 @@ func GeneratePipeline(c Config) (*bk.Pipeline, error) {
 			}
 		} else {
 			imageBuildOps.Append(buildCandidateDockerImage("syntax-highlighter", c.Version, c.candidateImageTag(), false))
+			imageBuildOps.Append(buildCandidateDockerImage("symbols", c.Version, c.candidateImageTag(), false))
 			imageBuildOps.Append(bazelBuildCandidateDockerImages(images.SourcegraphDockerImagesTestDeps, c.Version, c.candidateImageTag(), c.RunType))
 			var deployImages = []string{}
 			for _, image := range images.DeploySourcegraphDockerImages {
-				if image == "syntax-highlighter" {
+				if image == "syntax-highlighter" || image == "symbols" {
 					continue
 				}
 				deployImages = append(deployImages, image)
