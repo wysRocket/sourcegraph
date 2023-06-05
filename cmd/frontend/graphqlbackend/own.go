@@ -44,22 +44,29 @@ type OwnResolver interface {
 	GitCommitOwnership(ctx context.Context, commit *GitCommitResolver, args ListOwnershipArgs) (OwnershipConnectionResolver, error)
 	GitTreeOwnership(ctx context.Context, tree *GitTreeEntryResolver, args ListOwnershipArgs) (OwnershipConnectionResolver, error)
 
+	GitTreeOwnershipStats(ctx context.Context, tree *GitTreeEntryResolver) (OwnershipStatsResolver, error)
+	InstanceOwnershipStats(ctx context.Context) (OwnershipStatsResolver, error)
+
 	PersonOwnerField(person *PersonResolver) string
 	UserOwnerField(user *UserResolver) string
 	TeamOwnerField(team *TeamResolver) string
 
 	NodeResolvers() map[string]NodeByIDFunc
 
-	// Codeowners queries
+	// Codeowners queries.
 	CodeownersIngestedFiles(context.Context, *CodeownersIngestedFilesArgs) (CodeownersIngestedFileConnectionResolver, error)
 	RepoIngestedCodeowners(context.Context, api.RepoID) (CodeownersIngestedFileResolver, error)
 
-	// Codeowners mutations
+	// Codeowners mutations.
 	AddCodeownersFile(context.Context, *CodeownersFileArgs) (CodeownersIngestedFileResolver, error)
 	UpdateCodeownersFile(context.Context, *CodeownersFileArgs) (CodeownersIngestedFileResolver, error)
 	DeleteCodeownersFiles(context.Context, *DeleteCodeownersFileArgs) (*EmptyResponse, error)
 
-	// config
+	// Assigned ownership mutations.
+	AssignOwner(context.Context, *AssignOwnerArgs) (*EmptyResponse, error)
+	RemoveAssignedOwner(context.Context, *AssignOwnerArgs) (*EmptyResponse, error)
+
+	// Config.
 	OwnSignalConfigurations(ctx context.Context) ([]SignalConfigurationResolver, error)
 	UpdateOwnSignalConfigurations(ctx context.Context, configurationsArgs UpdateSignalConfigurationsArgs) ([]SignalConfigurationResolver, error)
 }
@@ -69,6 +76,11 @@ type OwnershipConnectionResolver interface {
 	TotalOwners(context.Context) (int32, error)
 	PageInfo(context.Context) (*graphqlutil.PageInfo, error)
 	Nodes(context.Context) ([]OwnershipResolver, error)
+}
+
+type OwnershipStatsResolver interface {
+	TotalFiles(context.Context) (int32, error)
+	TotalCodeownedFiles(context.Context) (int32, error)
 }
 
 type Ownable interface {
@@ -135,6 +147,17 @@ type CodeownersFileInput struct {
 type DeleteCodeownersFilesInput struct {
 	RepoID   *graphql.ID
 	RepoName *string
+}
+
+type AssignOwnerArgs struct {
+	Input AssignOwnerInput
+}
+
+type AssignOwnerInput struct {
+	// AssignedOwnerID is an ID of a user who is assigned as an owner.
+	AssignedOwnerID graphql.ID
+	RepoID          graphql.ID
+	AbsolutePath    string
 }
 
 type DeleteCodeownersFileArgs struct {
