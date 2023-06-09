@@ -197,7 +197,7 @@ func NewBasicJob(inputs *search.Inputs, b query.Basic, enterpriseJobs Enterprise
 
 	{ // Apply file:has.contributor() post-search filter
 		if includeOwners, excludeOwners, ok := isContributorSearch(b); ok {
-			basicJob = NewFileHasContributorsJob(basicJob, includeOwners, excludeOwners)
+			basicJob = NewFileHasContributorsJob(basicJob, b.IsCaseSensitive(), includeOwners, excludeOwners)
 		}
 	}
 
