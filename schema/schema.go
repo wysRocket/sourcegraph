@@ -560,7 +560,7 @@ type Completions struct {
 	ChatModel string `json:"chatModel,omitempty"`
 	// CompletionModel description: The model used for code completion. If using the default provider 'sourcegraph', a reasonable default model will be set.
 	CompletionModel string `json:"completionModel,omitempty"`
-	// Enabled description: Toggles whether completions are enabled.
+	// Enabled description: DEPRECATED. Use cody.enabled instead to turn Cody on/off.
 	Enabled bool `json:"enabled"`
 	// Endpoint description: The endpoint under which to reach the provider. Currently only used for provider types "sourcegraph", "openai" and "anthropic". The default values are "https://cody-gateway.sourcegraph.com", "https://api.openai.com/v1/chat/completions", and "https://api.anthropic.com/v1/complete" for Sourcegraph, OpenAI, and Anthropic, respectively.
 	Endpoint string `json:"endpoint,omitempty"`
@@ -622,11 +622,11 @@ type EmailTemplates struct {
 type Embeddings struct {
 	// AccessToken description: The access token used to authenticate with the external embedding API service. For provider sourcegraph, this is optional.
 	AccessToken string `json:"accessToken,omitempty"`
-	// Dimensions description: The dimensionality of the embedding vectors. Required field if not using the sourcegraph provider.
+	// Dimensions description: The dimensionality of the embedding vectors. Required field if not using the sourcegraph provider and the default model.
 	Dimensions int `json:"dimensions,omitempty"`
-	// Enabled description: Toggles whether embedding service is enabled.
-	Enabled bool `json:"enabled"`
-	// Endpoint description: The endpoint under which to reach the provider. Sensible default will be used for each provider.
+	// Enabled description: DEPRECATED. Use cody.enabled instead to turn Cody on/off.
+	Enabled bool `json:"enabled,omitempty"`
+	// Endpoint description: Custom endpoint override under which to reach the provider.
 	Endpoint string `json:"endpoint,omitempty"`
 	// ExcludedFilePathPatterns description: A list of glob patterns that match file paths you want to exclude from embeddings. This is useful to exclude files with low information value (e.g., SVG files, test fixtures, mocks, auto-generated files, etc.).
 	ExcludedFilePathPatterns []string `json:"excludedFilePathPatterns,omitempty"`
@@ -636,13 +636,13 @@ type Embeddings struct {
 	MaxCodeEmbeddingsPerRepo int `json:"maxCodeEmbeddingsPerRepo,omitempty"`
 	// MaxTextEmbeddingsPerRepo description: The maximum number of embeddings for text files to generate per repo
 	MaxTextEmbeddingsPerRepo int `json:"maxTextEmbeddingsPerRepo,omitempty"`
-	// MinimumInterval description: The time to wait between runs. Valid time units are "s", "m", "h". Example values: "30s", "5m", "1h".
+	// MinimumInterval description: The minimum time to wait between automated indexing runs for a repository. Valid time units are "s", "m", "h". Example values: "30s", "5m", "1h".
 	MinimumInterval string `json:"minimumInterval,omitempty"`
 	// Model description: The model used for embedding. A default model will be used for each provider, if not set.
 	Model string `json:"model,omitempty"`
-	// Provider description: The provider to use for generating embeddings. Defaults to sourcegraph.
+	// Provider description: The provider to use for generating embeddings.
 	Provider string `json:"provider,omitempty"`
-	// Url description: The url to the external embedding API service. Deprecated, use endpoint instead.
+	// Url description: DEPRECATED: Optional URL override to the external embedding API service. Use endpoint instead.
 	Url string `json:"url,omitempty"`
 }
 

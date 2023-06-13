@@ -2334,15 +2334,13 @@
     "embeddings": {
       "description": "Configuration for embeddings service.",
       "type": "object",
-      "required": ["enabled"],
       "properties": {
         "enabled": {
-          "description": "Toggles whether embedding service is enabled.",
-          "type": "boolean",
-          "default": false
+          "description": "DEPRECATED. Use cody.enabled instead to turn Cody on/off.",
+          "type": "boolean"
         },
         "dimensions": {
-          "description": "The dimensionality of the embedding vectors. Required field if not using the sourcegraph provider.",
+          "description": "The dimensionality of the embedding vectors. Required field if not using the sourcegraph provider and the default model.",
           "type": "integer",
           "minimum": 0
         },
@@ -2356,16 +2354,16 @@
         },
         "provider": {
           "type": "string",
-          "description": "The provider to use for generating embeddings. Defaults to sourcegraph.",
+          "description": "The provider to use for generating embeddings.",
           "enum": ["openai", "sourcegraph"]
         },
         "endpoint": {
           "type": "string",
-          "description": "The endpoint under which to reach the provider. Sensible default will be used for each provider.",
+          "description": "Custom endpoint override under which to reach the provider.",
           "format": "uri"
         },
         "url": {
-          "description": "The url to the external embedding API service. Deprecated, use endpoint instead.",
+          "description": "DEPRECATED: Optional URL override to the external embedding API service. Use endpoint instead.",
           "type": "string",
           "format": "uri"
         },
@@ -2395,18 +2393,17 @@
           "default": true
         },
         "minimumInterval": {
-          "description": "The time to wait between runs. Valid time units are \"s\", \"m\", \"h\". Example values: \"30s\", \"5m\", \"1h\".",
+          "description": "The minimum time to wait between automated indexing runs for a repository. Valid time units are \"s\", \"m\", \"h\". Example values: \"30s\", \"5m\", \"1h\".",
           "type": "string",
           "default": "24h"
         }
       },
       "examples": [
         {
-          "enabled": true,
           "dimensions": 1536,
+          "provider": "openai",
           "model": "text-embedding-ada-002",
           "accessToken": "your-access-token",
-          "url": "https://api.openai.com/v1/embeddings",
           "excludedFilePathPatterns": ["*.svg", "**/__mocks__/**", "**/test/**"]
         }
       ]
@@ -2417,9 +2414,8 @@
       "required": ["enabled"],
       "properties": {
         "enabled": {
-          "description": "Toggles whether completions are enabled.",
-          "type": "boolean",
-          "default": false
+          "description": "DEPRECATED. Use cody.enabled instead to turn Cody on/off.",
+          "type": "boolean"
         },
         "model": {
           "description": "DEPRECATED. Use chatModel instead.",
@@ -2464,13 +2460,13 @@
       },
       "examples": [
         {
-          "enabled": true,
-          "model": "code-completion",
-          "chatModel": "chat",
-          "completionModel": "code-completion",
+          "chatModel": "claude-v1",
+          "fastChatModel": "claude-instant-v1",
+          "completionModel": "claude-instant-v1",
           "accessToken": "abc123",
-          "provider": "openai",
-          "perUserDailyLimit": 100
+          "provider": "anthropic",
+          "perUserDailyLimit": 100,
+          "perUserCodeCompletionsDailyLimit": 1000
         }
       ]
     }
