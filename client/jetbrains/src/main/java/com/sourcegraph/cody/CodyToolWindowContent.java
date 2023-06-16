@@ -8,7 +8,11 @@ import static javax.swing.KeyStroke.getKeyStroke;
 
 import com.intellij.ide.ui.laf.darcula.ui.DarculaButtonUI;
 import com.intellij.ide.ui.laf.darcula.ui.DarculaTextAreaUI;
-import com.intellij.openapi.actionSystem.*;
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.CustomShortcutSet;
+import com.intellij.openapi.actionSystem.KeyboardShortcut;
+import com.intellij.openapi.actionSystem.ShortcutSet;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
@@ -24,18 +28,35 @@ import com.sourcegraph.cody.chat.ChatMessage;
 import com.sourcegraph.cody.editor.EditorContext;
 import com.sourcegraph.cody.editor.EditorContextGetter;
 import com.sourcegraph.cody.prompts.SupportedLanguages;
-import com.sourcegraph.cody.recipes.*;
+import com.sourcegraph.cody.recipes.ExplainCodeDetailedPromptProvider;
+import com.sourcegraph.cody.recipes.ExplainCodeHighLevelPromptProvider;
+import com.sourcegraph.cody.recipes.FindCodeSmellsPromptProvider;
+import com.sourcegraph.cody.recipes.GenerateDocStringPromptProvider;
+import com.sourcegraph.cody.recipes.GenerateUnitTestPromptProvider;
+import com.sourcegraph.cody.recipes.ImproveVariableNamesPromptProvider;
+import com.sourcegraph.cody.recipes.Language;
+import com.sourcegraph.cody.recipes.OptimizeCodePromptProvider;
+import com.sourcegraph.cody.recipes.PromptProvider;
+import com.sourcegraph.cody.recipes.RecipeRunner;
+import com.sourcegraph.cody.recipes.SummarizeRecentChangesRecipe;
+import com.sourcegraph.cody.recipes.TranslateToLanguagePromptProvider;
 import com.sourcegraph.cody.ui.RoundedJBTextArea;
 import com.sourcegraph.cody.ui.SelectOptionManager;
-import com.sourcegraph.cody.vcs.*;
 import com.sourcegraph.config.ConfigUtil;
 import com.sourcegraph.config.SettingsComponent;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.event.AdjustmentListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.function.Consumer;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.ButtonUI;
 import javax.swing.plaf.basic.BasicTextAreaUI;
@@ -326,7 +347,9 @@ class CodyToolWindowContent implements UpdatableChat {
   }
 
   private void sendMessage(@NotNull Project project, ChatMessage message, String responsePrefix) {
-    if (!sendButton.isEnabled()) return;
+    if (!sendButton.isEnabled()) {
+      return;
+    }
     startMessageProcessing();
     // Build message
     boolean isEnterprise =
