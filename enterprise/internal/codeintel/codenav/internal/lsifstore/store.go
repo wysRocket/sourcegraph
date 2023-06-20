@@ -34,6 +34,12 @@ type LsifStore interface {
 	GetHover(ctx context.Context, bundleID int, path string, line, character int) (string, shared.Range, bool, error)
 	GetDiagnostics(ctx context.Context, bundleID int, prefix string, limit, offset int) ([]shared.Diagnostic, int, error)
 	SCIPDocument(ctx context.Context, id int, path string) (_ *scip.Document, err error)
+
+	// Extraction methods
+	ExtractDefinitionLocationsFromPosition(ctx context.Context, uploadID int, path string, line, character, limit, offset int) ([]shared.Location, int, []string, error)
+	ExtractReferenceLocationsFromPosition(ctx context.Context, bundleID int, path string, line, character, limit, offset int) (_ []shared.Location, _ int, _ []string, err error)
+	ExtractImplementationLocationsFromPosition(ctx context.Context, bundleID int, path string, line, character, limit, offset int) (_ []shared.Location, _ int, _ []string, err error)
+	ExtractPrototypeLocationsFromPosition(ctx context.Context, bundleID int, path string, line, character, limit, offset int) (_ []shared.Location, _ int, _ []string, err error)
 }
 
 type store struct {
