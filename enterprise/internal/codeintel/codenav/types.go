@@ -77,6 +77,10 @@ type AdjustedCodeIntelligenceRange struct {
 	HoverText       string
 }
 
+type GenericCursor struct {
+	Phase string `json:"phase"`
+}
+
 // referencesCursor stores (enough of) the state of a previous References request used to
 // calculate the offset into the result set to be returned by the current request.
 type ReferencesCursor struct {

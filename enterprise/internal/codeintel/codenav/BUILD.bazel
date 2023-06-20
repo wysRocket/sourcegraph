@@ -11,6 +11,7 @@ go_library(
         "observability.go",
         "request_state.go",
         "service.go",
+        "service_new.go",
         "types.go",
         "utils.go",
     ],
