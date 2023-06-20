@@ -152,10 +152,11 @@ func (s *Service) gatherLocations(
 	}})
 	defer endObservation()
 
-	visibleUploads, err := s.getVisibleUploads(ctx, args.Line, args.Character, requestState)
+	visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(ctx, args.Line, args.Character, &cursor.CursorsToVisibleUploads, requestState)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, cursor, err
 	}
+	cursor.CursorsToVisibleUploads = cursorsToVisibleUploads
 
 	var allLocations []shared.UploadLocation
 	allSymbols := map[string]struct{}{}

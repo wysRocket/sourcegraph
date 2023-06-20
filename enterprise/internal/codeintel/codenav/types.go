@@ -78,7 +78,8 @@ type AdjustedCodeIntelligenceRange struct {
 }
 
 type GenericCursor struct {
-	Phase string `json:"phase"`
+	CursorsToVisibleUploads []CursorToVisibleUpload `json:"adjustedUploads"`
+	Phase                   string                  `json:"phase"`
 }
 
 // referencesCursor stores (enough of) the state of a previous References request used to
