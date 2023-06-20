@@ -3,7 +3,7 @@ import { expect } from '@playwright/test'
 import { sidebarExplorer, sidebarSignin } from './common'
 import { test } from './helpers'
 
-test('start a fixup job from inline assist with valid auth', async ({ page, sidebar }) => {
+test('start a fixup job from inline chat with valid auth', async ({ page, sidebar }) => {
     // Sign into Cody
     await sidebarSignin(page, sidebar)
 
@@ -40,5 +40,5 @@ test('start a fixup job from inline assist with valid auth', async ({ page, side
     // Ensures Decorations is displayed by checking hover text
     await page.getByText('>Goodbye Cody<').hover()
     // The decoration text on hover should start with 'Cody Fixup #' and end with random number
-    await page.getByRole('tooltip', { name: /Cody Assist.*/ }).click()
+    await page.getByRole('tooltip', { name: /Cody Inline Chat.*/ }).click()
 })

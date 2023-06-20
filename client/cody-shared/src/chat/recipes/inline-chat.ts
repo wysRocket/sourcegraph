@@ -11,7 +11,7 @@ import { Fixup } from './fixup'
 import { commandRegex } from './helpers'
 import { Recipe, RecipeContext, RecipeID } from './recipe'
 
-export class InlineAssist implements Recipe {
+export class InlineChat implements Recipe {
     public id: RecipeID = 'inline-chat'
 
     constructor(private debug: (filterLabel: string, text: string, ...args: unknown[]) => void) {}
@@ -39,14 +39,13 @@ export class InlineAssist implements Recipe {
 
         // Reconstruct Cody's prompt using user's context
         // Replace placeholders in reverse order to avoid collisions if a placeholder occurs in the input
-        const promptText = InlineAssist.prompt
+        const promptText = InlineChat.prompt
             .replace('{humanInput}', truncatedText)
             .replace('{selectedText}', truncatedSelectedText)
             .replace('{fileName}', selection.fileName)
 
         // Text display in UI fpr human that includes the selected code
-        const displayText =
-            humanChatInput + InlineAssist.displayPrompt.replace('{selectedText}', selection.selectedText)
+        const displayText = humanChatInput + InlineChat.displayPrompt.replace('{selectedText}', selection.selectedText)
 
         return Promise.resolve(
             new Interaction(

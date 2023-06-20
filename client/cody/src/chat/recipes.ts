@@ -11,7 +11,7 @@ import { ReleaseNotes } from '@sourcegraph/cody-shared/src/chat/recipes/generate
 import { GenerateTest } from '@sourcegraph/cody-shared/src/chat/recipes/generate-test'
 import { GitHistory } from '@sourcegraph/cody-shared/src/chat/recipes/git-log'
 import { ImproveVariableNames } from '@sourcegraph/cody-shared/src/chat/recipes/improve-variable-names'
-import { InlineAssist } from '@sourcegraph/cody-shared/src/chat/recipes/inline-chat'
+import { InlineChat } from '@sourcegraph/cody-shared/src/chat/recipes/inline-chat'
 import { NextQuestions } from '@sourcegraph/cody-shared/src/chat/recipes/next-questions'
 import { NonStop } from '@sourcegraph/cody-shared/src/chat/recipes/non-stop'
 import { OptimizeCode } from '@sourcegraph/cody-shared/src/chat/recipes/optimize-code'
@@ -47,7 +47,7 @@ function init(): void {
         new GenerateTest(),
         new GitHistory(),
         new ImproveVariableNames(),
-        new InlineAssist(debug),
+        new InlineChat(debug),
         new NextQuestions(),
         new NonStop(),
         new OptimizeCode(),

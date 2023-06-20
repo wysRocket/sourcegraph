@@ -3,7 +3,7 @@ import * as vscode from 'vscode'
 import { CodyTaskState } from '../non-stop/utils'
 
 import { DecorationProvider } from './DecorationProvider'
-import { editDocByUri, getSingleLineRange, updateRangeOnDocChange } from './InlineAssist'
+import { editDocByUri, getSingleLineRange, updateRangeOnDocChange } from './InlineChat'
 
 export class CodeLensProvider implements vscode.CodeLensProvider {
     private selectionRange: vscode.Range | null = null

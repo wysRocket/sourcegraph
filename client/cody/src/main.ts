@@ -89,7 +89,7 @@ const register = async (
     const disposables: vscode.Disposable[] = []
 
     await updateEventLogger(initialConfig, localStorage)
-    // Controller for inline assist
+    // Controller for inline chat
     const commentController = new InlineController(context.extensionPath)
     disposables.push(commentController.get())
 
@@ -172,7 +172,7 @@ const register = async (
                 snippet: copiedText,
             })
         }),
-        // Inline Assist Provider
+        // Inline Chat Provider
         vscode.commands.registerCommand('cody.comment.add', async (comment: vscode.CommentReply) => {
             const isFixMode = /^\/f(ix)?\s/i.test(comment.text.trimStart())
             await commentController.chat(comment, isFixMode)
@@ -211,7 +211,7 @@ const register = async (
         vscode.commands.registerCommand('cody.walkthrough.showChat', () => chatProvider.setWebviewView('chat')),
         vscode.commands.registerCommand('cody.walkthrough.showFixup', () => chatProvider.setWebviewView('recipes')),
         vscode.commands.registerCommand('cody.walkthrough.showExplain', () => chatProvider.setWebviewView('recipes')),
-        vscode.commands.registerCommand('cody.walkthrough.enableInlineAssist', async () => {
+        vscode.commands.registerCommand('cody.walkthrough.enableInlineChat', async () => {
             await workspaceConfig.update('cody.experimental.inline', true, vscode.ConfigurationTarget.Global)
             // Open VSCode setting view. Provides visual confirmation that the setting is enabled.
             return vscode.commands.executeCommand('workbench.action.openSettings', {
@@ -342,7 +342,7 @@ const register = async (
         }
     })
 
-    // Initiate inline assist when feature flag is on
+    // Initiate inline chat when feature flag is on
     if (initialConfig.experimentalInline) {
         commentController.get().commentingRangeProvider = {
             provideCommentingRanges: (document: vscode.TextDocument) => {

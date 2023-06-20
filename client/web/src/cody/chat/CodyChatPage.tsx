@@ -165,8 +165,8 @@ export const CodyChatPage: React.FunctionComponent<CodyChatPageProps> = ({
                         <div className="ml-3">
                             <H3>Cody is more powerful in your IDE</H3>
                             <Text>
-                                Cody adds powerful AI assistant functionality like inline completions and assist, and
-                                powerful recipes to help you understand codebases and generate and fix code more
+                                Cody adds powerful AI assistant functionality like inline completions and inline chat,
+                                and powerful recipes to help you understand codebases and generate and fix code more
                                 accurately.
                             </Text>
                             <ButtonLink variant="primary" to="/help/cody#get-cody">

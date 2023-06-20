@@ -7,7 +7,7 @@ import { logEvent } from '../event-logger'
 import { CodyTaskState } from '../non-stop/utils'
 
 import { CodeLensProvider } from './CodeLensProvider'
-import { editDocByUri, getIconPath, updateRangeOnDocChange } from './InlineAssist'
+import { editDocByUri, getIconPath, updateRangeOnDocChange } from './InlineChat'
 
 const initPost = new vscode.Position(0, 0)
 const initRange = new vscode.Range(initPost, initPost)

@@ -64,7 +64,7 @@ export function createStatusBar(): CodyStatusBar {
                     c => c.experimentalSuggest
                 ),
                 createFeatureToggle(
-                    'Inline Assist',
+                    'Inline Chat',
                     'Beta',
                     'An inline way to explicitly ask questions and propose modifications to code',
                     'cody.experimental.inline',

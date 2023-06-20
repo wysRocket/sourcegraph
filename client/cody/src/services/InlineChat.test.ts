@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 
-import { editDocByUri, updateRangeOnDocChange } from './InlineAssist'
+import { editDocByUri, updateRangeOnDocChange } from './InlineChat'
 
 describe('UpdateRangeOnDocChange returns a new selection range by calculating lines of code changed in current docs', () => {
     it('Returns current Range if change occurs after the current selected range', () => {

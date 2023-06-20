@@ -57,16 +57,16 @@
 
    ```sh
    pnpm test:e2e $TEST_NAME
-   # Example: Run the inline-assist test only
-   pnpm test:e2e inline-assist
+   # Example: Run the inline-chat test only
+   pnpm test:e2e inline-chat
    ```
 
-   Example: Run the inline-assist test only
+   Example: Run the inline-chat test only
 
    ```sh
    pnpm test:e2e --debug
-   # Example: Run the inline-assist test in debug mode
-   pnpm test:e2e inline-assist --debug
+   # Example: Run the inline-chat test in debug mode
+   pnpm test:e2e inline-chat --debug
    ```
 
 ## Release Process

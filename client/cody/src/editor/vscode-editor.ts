@@ -22,14 +22,14 @@ export class VSCodeEditor implements Editor {
             const config = vscode.workspace.getConfiguration('cody')
             const isTesting = process.env.CODY_TESTING === 'true'
             if (e.affectsConfiguration('cody')) {
-                // Inline Assist
-                const enableInlineAssist = (config.get('experimental.inline') as boolean) || isTesting
+                // Inline Chat
+                const enableInlineChat = (config.get('experimental.inline') as boolean) || isTesting
                 const inlineController = this.controllers.inline
-                void vscode.commands.executeCommand('setContext', 'cody.inline-assist.enabled', enableInlineAssist)
+                void vscode.commands.executeCommand('setContext', 'cody.inline-assist.enabled', enableInlineChat)
                 inlineController.get().commentingRangeProvider = {
                     provideCommentingRanges: (document: vscode.TextDocument) => {
                         const lineCount = document.lineCount
-                        return enableInlineAssist ? [new vscode.Range(0, 0, lineCount - 1, 0)] : []
+                        return enableInlineChat ? [new vscode.Range(0, 0, lineCount - 1, 0)] : []
                     },
                 }
             }

@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 
 import { CodyTaskState } from '../non-stop/utils'
 
-import { getIconPath, getSingleLineRange } from './InlineAssist'
+import { getIconPath, getSingleLineRange } from './InlineChat'
 
 const initDecorationType = vscode.window.createTextEditorDecorationType({})
 
@@ -56,7 +56,7 @@ export class DecorationProvider {
         const rangeStartLine = getSingleLineRange(range.start.line)
         if (this.status === CodyTaskState.error) {
             this.decorationTypePending.dispose()
-            this.decorations.push({ range, hoverMessage: 'Failed Cody Assist #' + this.id })
+            this.decorations.push({ range, hoverMessage: 'Cody Inline Chat #' + this.id + ' failed' })
             this.decorationsForIcon.push({ range: rangeStartLine })
             vscode.window.activeTextEditor?.setDecorations(this.decorationTypeError, this.decorations)
             await vscode.window.showTextDocument(this.fileUri, { selection: rangeStartLine })
@@ -64,7 +64,7 @@ export class DecorationProvider {
         }
         if (this.status === CodyTaskState.fixed) {
             this.decorationTypePending.dispose()
-            this.decorations.push({ range, hoverMessage: 'Cody Assist #' + this.id })
+            this.decorations.push({ range, hoverMessage: 'Cody Inline Chat #' + this.id })
             this.decorationsForIcon.push({ range: rangeStartLine })
             vscode.window.activeTextEditor?.setDecorations(this.decorationTypeIcon, this.decorationsForIcon)
             vscode.window.activeTextEditor?.setDecorations(this.decorationTypeDiff, this.decorations)
