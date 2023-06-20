@@ -130,6 +130,8 @@ func (s *Service) makeReferencesUploadFactory(args RequestArgs, requestState Req
 type getSearchableUploadIDsFunc func(ctx context.Context, monikers []precise.QualifiedMonikerData) ([]int, error)
 type getLocationsFromPositionFunc func(ctx context.Context, bundleID int, path string, line, character, limit, offset int) ([]shared.Location, int, []string, error)
 
+var exhaustedCursor = GenericCursor{Phase: "done"}
+
 func (s *Service) gatherLocations(
 	ctx context.Context,
 	args RequestArgs,
@@ -184,7 +186,7 @@ func (s *Service) gatherLocations(
 			allLocations = append(allLocations, uploadLocations...)
 
 			if len(allLocations) > 0 && stopAfterFirstResult {
-				return allLocations, GenericCursor{Phase: "done"}, nil
+				return allLocations, exhaustedCursor, nil
 			}
 		}
 
@@ -235,7 +237,7 @@ func (s *Service) gatherLocations(
 		)
 	})
 
-	return locs, GenericCursor{Phase: "done"}, nil
+	return locs, exhaustedCursor, nil
 }
 
 func symbolsToMonikers(symbolNames []string) ([]precise.QualifiedMonikerData, error) {
