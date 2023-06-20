@@ -93,10 +93,20 @@ func (s *Service) makeDefinitionUploadFactory(requestState RequestState) getSear
 
 func (s *Service) makeReferencesUploadFactory(args RequestArgs, requestState RequestState) getSearchableUploadIDsFunc {
 	return func(ctx context.Context, monikers []precise.QualifiedMonikerData) ([]int, error) {
-		ids, _, _, err := s.uploadSvc.GetUploadIDsWithReferences(
+		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
+		if err != nil {
+			return nil, err
+		}
+
+		var ids []int
+		for _, u := range uploads {
+			ids = append(ids, u.ID)
+		}
+
+		referenceIDs, _, _, err := s.uploadSvc.GetUploadIDsWithReferences(
 			ctx,
 			monikers,
-			nil,
+			ids,
 			args.RepositoryID,
 			args.Commit,
 			requestState.maximumIndexesPerMonikerSearch,
@@ -106,19 +116,11 @@ func (s *Service) makeReferencesUploadFactory(args RequestArgs, requestState Req
 			return nil, err
 		}
 		// Fetch the upload records we don't currently have hydrated and insert them into the map
-		if _, err := s.getUploadsByIDs(ctx, ids, requestState); err != nil {
+		if _, err := s.getUploadsByIDs(ctx, referenceIDs, requestState); err != nil {
 			return nil, err
 		}
 
-		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
-		if err != nil {
-			return nil, err
-		}
-		for _, u := range uploads {
-			ids = append(ids, u.ID)
-		}
-
-		return ids, nil
+		return append(ids, referenceIDs...), nil
 	}
 }
 
