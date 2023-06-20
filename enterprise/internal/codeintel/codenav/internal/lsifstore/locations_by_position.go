@@ -491,7 +491,7 @@ func pageSlice[T any](s []T, limit, offset int) []T {
 //
 //
 
-func (s *store) GetMinimalBulkMonikerLocations(ctx context.Context, tableName string, uploadIDs []int, monikers []precise.MonikerData, limit, offset int) (_ []shared.Location, totalCount int, err error) {
+func (s *store) GetMinimalBulkMonikerLocations(ctx context.Context, tableName string, uploadIDs []int, skipPaths map[int]string, monikers []precise.MonikerData, limit, offset int) (_ []shared.Location, totalCount int, err error) {
 	ctx, trace, endObservation := s.operations.getBulkMonikerLocations.With(ctx, &err, observation.Args{Attrs: []attribute.KeyValue{
 		attribute.String("tableName", tableName),
 		attribute.Int("numUploadIDs", len(uploadIDs)),
@@ -512,6 +512,16 @@ func (s *store) GetMinimalBulkMonikerLocations(ctx context.Context, tableName st
 		symbolNames = append(symbolNames, arg.Identifier)
 	}
 
+	var skipConds []*sqlf.Query
+	for _, id := range uploadIDs {
+		if path, ok := skipPaths[id]; ok {
+			skipConds = append(skipConds, sqlf.Sprintf("(%s, %s)", id, path))
+		}
+	}
+	if len(skipConds) == 0 {
+		skipConds = append(skipConds, sqlf.Sprintf("(%s, %s)", -1, ""))
+	}
+
 	fieldName := fmt.Sprintf("%s_ranges", strings.TrimSuffix(tableName, "s"))
 	query := sqlf.Sprintf(
 		minimalBulkMonikerResultsQuery,
@@ -519,6 +529,7 @@ func (s *store) GetMinimalBulkMonikerLocations(ctx context.Context, tableName st
 		pq.Array(uploadIDs),
 		sqlf.Sprintf(fieldName),
 		sqlf.Sprintf(fieldName),
+		sqlf.Join(skipConds, ", "),
 	)
 
 	locationData, err := s.scanDeduplicatedQualifiedMonikerLocations(s.db.Query(ctx, query))
@@ -574,6 +585,8 @@ SELECT
 FROM codeintel_scip_symbols ss
 JOIN codeintel_scip_document_lookup dl ON dl.id = ss.document_lookup_id
 JOIN matching_symbol_names msn ON msn.upload_id = ss.upload_id AND msn.id = ss.symbol_id
-WHERE ss.%s IS NOT NULL
+WHERE
+	ss.%s IS NOT NULL AND
+	(ss.upload_id, dl.document_path) NOT IN (%s)
 ORDER BY ss.upload_id, dl.document_path
 `

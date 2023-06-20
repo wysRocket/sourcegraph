@@ -2,9 +2,8 @@ package codenav
 
 import (
 	"context"
-	"fmt"
-	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	"go.opentelemetry.io/otel/attribute"
@@ -130,6 +129,8 @@ func (s *Service) makeReferencesUploadFactory(args RequestArgs, requestState Req
 type getSearchableUploadIDsFunc func(ctx context.Context, monikers []precise.QualifiedMonikerData) ([]int, error)
 type getLocationsFromPositionFunc func(ctx context.Context, bundleID int, path string, line, character, limit, offset int) ([]shared.Location, int, []string, error)
 
+const skipPrefix = "lsif ."
+
 var exhaustedCursor = GenericCursor{Phase: "done"}
 
 func (s *Service) gatherLocations(
@@ -154,6 +155,7 @@ func (s *Service) gatherLocations(
 	}})
 	defer endObservation()
 
+	// Determine the set of visible uploads for the source commit
 	visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(ctx, args.Line, args.Character, &cursor.CursorsToVisibleUploads, requestState)
 	if err != nil {
 		return nil, cursor, err
@@ -162,6 +164,7 @@ func (s *Service) gatherLocations(
 
 	var allLocations []shared.UploadLocation
 	allSymbols := map[string]struct{}{}
+	skipPaths := map[int]string{}
 
 	for i := range visibleUploads {
 		trace.AddEvent("TODO Domain Owner", attribute.Int("uploadID", visibleUploads[i].Upload.ID))
@@ -185,13 +188,17 @@ func (s *Service) gatherLocations(
 			}
 			allLocations = append(allLocations, uploadLocations...)
 
-			if len(allLocations) > 0 && stopAfterFirstResult {
+			if stopAfterFirstResult {
 				return allLocations, exhaustedCursor, nil
 			}
+
+			skipPaths[visibleUploads[i].Upload.ID] = visibleUploads[i].TargetPathWithoutRoot
 		}
 
 		for _, symbolName := range uploadSymbols {
-			allSymbols[symbolName] = struct{}{}
+			if !strings.HasPrefix(symbolName, skipPrefix) {
+				allSymbols[symbolName] = struct{}{}
+			}
 		}
 	}
 
@@ -215,29 +222,19 @@ func (s *Service) gatherLocations(
 	for _, moniker := range monikers {
 		monikerArgs = append(monikerArgs, moniker.MonikerData)
 	}
-	locations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, monikerArgs, 10000, 0)
+
+	locations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, skipPaths, monikerArgs, 10000, 0)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
+	// Adjust locations back to target commit
 	adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, locations, false)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
-	locs := shared.Deduplicate(append(allLocations, adjustedLocations...), func(l shared.UploadLocation) string {
-		return fmt.Sprintf("%d@%s:%s:%d:%d:%d:%d",
-			l.Dump.RepositoryID,
-			l.TargetCommit,
-			filepath.Join(l.Dump.Root, l.Path),
-			l.TargetRange.Start.Line,
-			l.TargetRange.Start.Character,
-			l.TargetRange.End.Line,
-			l.TargetRange.End.Character,
-		)
-	})
-
-	return locs, exhaustedCursor, nil
+	return append(allLocations, adjustedLocations...), exhaustedCursor, nil
 }
 
 func symbolsToMonikers(symbolNames []string) ([]precise.QualifiedMonikerData, error) {
