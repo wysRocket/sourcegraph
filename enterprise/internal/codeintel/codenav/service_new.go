@@ -172,7 +172,7 @@ func (s *Service) gatherLocations(
 			visibleUploads[i].TargetPathWithoutRoot,
 			visibleUploads[i].TargetPosition.Line,
 			visibleUploads[i].TargetPosition.Character,
-			DefinitionsLimit,
+			args.Limit,
 			0,
 		)
 		if err != nil {
