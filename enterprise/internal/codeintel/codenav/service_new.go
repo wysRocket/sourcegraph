@@ -157,14 +157,7 @@ func (s *Service) gatherLocations(
 
 	// PHASE 1:
 	// Determine the set of visible uploads for the source commit
-	visibleUploads, err := func() ([]visibleUpload, error) {
-		visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(ctx, args.Line, args.Character, &cursor.CursorsToVisibleUploads, requestState)
-		if err != nil {
-			return nil, err
-		}
-		cursor.CursorsToVisibleUploads = cursorsToVisibleUploads
-		return visibleUploads, nil
-	}()
+	visibleUploads, cursor, err := s.phase1(ctx, args, requestState, cursor)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
@@ -174,59 +167,7 @@ func (s *Service) gatherLocations(
 	// locations directly from that document. As a side-effect, we'll also gather
 	// the set of relevant symbol names to search over remote indexes, depending
 	// on the specific relationship being queried.
-	localLocations, monikers, skipPaths, err := func() ([]shared.UploadLocation, []precise.QualifiedMonikerData, map[int]string, error) {
-		var (
-			combinedLocations []shared.UploadLocation
-			allSymbols        = map[string]struct{}{}
-			skipPaths         = map[int]string{}
-		)
-
-		for i := range visibleUploads {
-			// TODO - paginate
-			locations, _, uploadSymbols, err := getLocationsFromPosition(
-				ctx,
-				visibleUploads[i].Upload.ID,
-				visibleUploads[i].TargetPathWithoutRoot,
-				visibleUploads[i].TargetPosition.Line,
-				visibleUploads[i].TargetPosition.Character,
-				args.Limit,
-				0,
-			)
-			if err != nil {
-				return nil, nil, nil, err
-			}
-			if len(locations) > 0 {
-				adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, locations, true)
-				if err != nil {
-					return nil, nil, nil, err
-				}
-				if stopAfterFirstResult {
-					return adjustedLocations, nil, nil, nil
-				}
-
-				combinedLocations = append(combinedLocations, adjustedLocations...)
-				skipPaths[visibleUploads[i].Upload.ID] = visibleUploads[i].TargetPathWithoutRoot
-			}
-
-			for _, symbolName := range uploadSymbols {
-				if !strings.HasPrefix(symbolName, skipPrefix) {
-					allSymbols[symbolName] = struct{}{}
-				}
-			}
-		}
-
-		var symbolNames []string
-		for symbolName := range allSymbols {
-			symbolNames = append(symbolNames, symbolName)
-		}
-
-		monikers, err := symbolsToMonikers(symbolNames)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-
-		return combinedLocations, monikers, skipPaths, nil
-	}()
+	localLocations, monikers, skipPaths, err := s.phase2(ctx, args, requestState, stopAfterFirstResult, getLocationsFromPosition, visibleUploads)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
@@ -234,41 +175,137 @@ func (s *Service) gatherLocations(
 	// PHASE 3:
 	// Determine the set of uploads that could have locations related to the given
 	// set of target symbol names.
-	uploadIDs, err := func() ([]int, error) {
-		// TODO - paginate
-		uploadIDs, err := getSearchableUploadIDs(ctx, monikers)
-		if err != nil {
-			return nil, err
-		}
-
-		return uploadIDs, nil
-	}()
+	uploadIDs, err := s.phase3(ctx, getSearchableUploadIDs, monikers)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
 	// PHASE 4:
 	// Search in batches for target symbol names over our selected candidate indexes
-	remoteLocations, err := func() ([]shared.UploadLocation, error) {
-		monikerArgs := make([]precise.MonikerData, 0, len(monikers))
-		for _, moniker := range monikers {
-			monikerArgs = append(monikerArgs, moniker.MonikerData)
-		}
-
-		// TODO - paginate
-		locations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, skipPaths, monikerArgs, 10000, 0)
-		if err != nil {
-			return nil, err
-		}
-
-		// Adjust locations back to target commit
-		return s.getUploadLocations(ctx, args, requestState, locations, false)
-	}()
+	remoteLocations, err := s.phase4(ctx, args, requestState, tableName, monikers, skipPaths, uploadIDs)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
 	return append(localLocations, remoteLocations...), exhaustedCursor, nil
+}
+
+// WIP
+func (s *Service) phase1(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+) ([]visibleUpload, GenericCursor, error) {
+	visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(ctx, args.Line, args.Character, &cursor.CursorsToVisibleUploads, requestState)
+	if err != nil {
+		return nil, GenericCursor{}, err
+	}
+
+	cursor.CursorsToVisibleUploads = cursorsToVisibleUploads
+	return visibleUploads, cursor, nil
+}
+
+// WIP
+func (s *Service) phase2(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	stopAfterFirstResult bool,
+	getLocationsFromPosition getLocationsFromPositionFunc,
+	visibleUploads []visibleUpload,
+) ([]shared.UploadLocation, []precise.QualifiedMonikerData, map[int]string, error) {
+	var (
+		combinedLocations []shared.UploadLocation
+		allSymbols        = map[string]struct{}{}
+		skipPaths         = map[int]string{}
+	)
+
+	for i := range visibleUploads {
+		// TODO - paginate
+		locations, _, uploadSymbols, err := getLocationsFromPosition(
+			ctx,
+			visibleUploads[i].Upload.ID,
+			visibleUploads[i].TargetPathWithoutRoot,
+			visibleUploads[i].TargetPosition.Line,
+			visibleUploads[i].TargetPosition.Character,
+			args.Limit,
+			0,
+		)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if len(locations) > 0 {
+			adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, locations, true)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			if stopAfterFirstResult {
+				return adjustedLocations, nil, nil, nil
+			}
+
+			combinedLocations = append(combinedLocations, adjustedLocations...)
+			skipPaths[visibleUploads[i].Upload.ID] = visibleUploads[i].TargetPathWithoutRoot
+		}
+
+		for _, symbolName := range uploadSymbols {
+			if !strings.HasPrefix(symbolName, skipPrefix) {
+				allSymbols[symbolName] = struct{}{}
+			}
+		}
+	}
+
+	var symbolNames []string
+	for symbolName := range allSymbols {
+		symbolNames = append(symbolNames, symbolName)
+	}
+
+	monikers, err := symbolsToMonikers(symbolNames)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return combinedLocations, monikers, skipPaths, nil
+}
+
+// WIP
+func (s *Service) phase3(
+	ctx context.Context,
+	getSearchableUploadIDs getSearchableUploadIDsFunc,
+	monikers []precise.QualifiedMonikerData,
+) ([]int, error) {
+	// TODO - paginate
+	uploadIDs, err := getSearchableUploadIDs(ctx, monikers)
+	if err != nil {
+		return nil, err
+	}
+
+	return uploadIDs, nil
+}
+
+// WIP
+func (s *Service) phase4(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	tableName string,
+	monikers []precise.QualifiedMonikerData,
+	skipPaths map[int]string,
+	uploadIDs []int,
+) ([]shared.UploadLocation, error) {
+	monikerArgs := make([]precise.MonikerData, 0, len(monikers))
+	for _, moniker := range monikers {
+		monikerArgs = append(monikerArgs, moniker.MonikerData)
+	}
+
+	// TODO - paginate
+	locations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, skipPaths, monikerArgs, 10000, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	// Adjust locations back to target commit
+	return s.getUploadLocations(ctx, args, requestState, locations, false)
 }
 
 func symbolsToMonikers(symbolNames []string) ([]precise.QualifiedMonikerData, error) {
