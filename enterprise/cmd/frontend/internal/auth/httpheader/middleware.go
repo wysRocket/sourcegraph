@@ -91,7 +91,7 @@ func middleware(db database.DB) func(next http.Handler) http.Handler {
 					return
 				}
 			}
-			userID, safeErrMsg, err := auth.GetAndSaveUser(r.Context(), db, auth.GetAndSaveUserOp{
+			newUserCreated, userID, safeErrMsg, err := auth.GetAndSaveUser(r.Context(), db, auth.GetAndSaveUserOp{
 				UserProps: database.NewUser{
 					Username: username,
 					Email:    rawEmail,
@@ -118,6 +118,15 @@ func middleware(db database.DB) func(next http.Handler) http.Handler {
 				http.Error(w, safeErrMsg, http.StatusInternalServerError)
 				return
 			}
+
+			// Add a ?signup= or ?signin= parameter to the redirect URL.
+			q := r.URL.Query()
+			if newUserCreated {
+				q.Add("signup", "")
+			} else {
+				q.Add("signin", "")
+			}
+			r.URL.RawQuery = q.Encode()
 
 			r = r.WithContext(actor.WithActor(r.Context(), &actor.Actor{UID: userID}))
 			next.ServeHTTP(w, r)

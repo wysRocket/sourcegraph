@@ -322,13 +322,23 @@ func AuthCallback(db database.DB, r *http.Request, stateCookieName, usernamePref
 	if err = userInfo.Claims(&claims); err != nil {
 		log15.Warn("OpenID Connect auth: could not parse userInfo claims.", "error", err)
 	}
-	actor, safeErrMsg, err := getOrCreateUser(r.Context(), db, p, idToken, userInfo, &claims, usernamePrefix)
+	newUserCreated, actor, safeErrMsg, err := getOrCreateUser(r.Context(), db, p, idToken, userInfo, &claims, usernamePrefix)
 	if err != nil {
 		return nil,
 			safeErrMsg,
 			http.StatusInternalServerError,
 			errors.Wrap(err, "look up authenticated user")
 	}
+
+	// Add a ?signup= or ?signin= parameter to the redirect URL.
+	redirectURL = url.Parse(state.Redirect)
+	q = redirectURL.Query()
+	if newUserCreated {
+		q.Add("signup", "")
+	} else {
+		q.Add("signin", "")
+	}
+	redirectURL.RawQuery = q.Encode()
 
 	user, err := db.Users().GetByID(r.Context(), actor.UID)
 	if err != nil {
@@ -344,7 +354,7 @@ func AuthCallback(db database.DB, r *http.Request, stateCookieName, usernamePref
 			AccessToken: oauth2Token.AccessToken,
 			TokenType:   oauth2Token.TokenType,
 		},
-		Redirect: state.Redirect,
+		Redirect: redirectURL.String(),
 	}, "", 0, nil
 }
 
