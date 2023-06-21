@@ -20,7 +20,7 @@ func (s *Service) NewGetDefinitions(
 	requestState RequestState,
 ) (_ []shared.UploadLocation, err error) {
 	locations, _, err := s.gatherLocations(
-		ctx, args, requestState, GenericCursor{},
+		ctx, args, requestState, Cursor{},
 
 		s.operations.getDefinitions, // operation
 		"definitions",               // tableName
@@ -35,8 +35,8 @@ func (s *Service) NewGetReferences(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
-) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+	cursor Cursor,
+) (_ []shared.UploadLocation, nextCursor Cursor, err error) {
 	return s.gatherLocations(
 		ctx, args, requestState, cursor,
 
@@ -51,8 +51,8 @@ func (s *Service) NewGetImplementations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
-) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+	cursor Cursor,
+) (_ []shared.UploadLocation, nextCursor Cursor, err error) {
 	return s.gatherLocations(
 		ctx, args, requestState, cursor,
 
@@ -67,8 +67,8 @@ func (s *Service) NewGetPrototypes(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
-) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+	cursor Cursor,
+) (_ []shared.UploadLocation, nextCursor Cursor, err error) {
 	return s.gatherLocations(
 		ctx, args, requestState, cursor,
 
@@ -96,12 +96,12 @@ func (s *Service) gatherLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
+	cursor Cursor,
 	operation *observation.Operation,
 	tableName string,
 	includeReferencingIndexes bool,
 	extractPrototypeLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
-) (allLocations []shared.UploadLocation, _ GenericCursor, err error) {
+) (allLocations []shared.UploadLocation, _ Cursor, err error) {
 	// TODO - update, add trace logs below
 	ctx, _, endObservation := observeResolver(ctx, &err, operation, serviceObserverThreshold, observation.Args{Attrs: []attribute.KeyValue{
 		attribute.Int("repositoryID", args.RepositoryID),
@@ -132,7 +132,7 @@ func (s *Service) gatherLocations(
 		cursor,
 	)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	// The following loop calls local and remote location resolution phases in alternation. As
@@ -169,7 +169,7 @@ outer:
 				args.Limit-len(allLocations), // remaining space in the page
 			)
 			if err != nil {
-				return nil, GenericCursor{}, err
+				return nil, Cursor{}, err
 			}
 			allLocations = append(allLocations, locations...)
 		}
@@ -182,14 +182,14 @@ func (s *Service) newGetVisibleUploadsFromCursor(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
-) ([]visibleUpload, GenericCursor, error) {
+	cursor Cursor,
+) ([]visibleUpload, Cursor, error) {
 	if cursor.VisibleUploads != nil {
 		visibleUploads := make([]visibleUpload, 0, len(cursor.VisibleUploads))
 		for _, u := range cursor.VisibleUploads {
 			upload, ok := requestState.dataLoader.GetUploadFromCacheMap(u.DumpID)
 			if !ok {
-				return nil, GenericCursor{}, ErrConcurrentModification
+				return nil, Cursor{}, ErrConcurrentModification
 			}
 
 			visibleUploads = append(visibleUploads, visibleUpload{
@@ -205,7 +205,7 @@ func (s *Service) newGetVisibleUploadsFromCursor(
 
 	visibleUploads, err := s.getVisibleUploads(ctx, args.Line, args.Character, requestState)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	cursorVisibleUpload := make([]CursorVisibleUpload, 0, len(visibleUploads))
@@ -226,13 +226,13 @@ type gatherLocationsFunc func(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
+	cursor Cursor,
 	tableName string,
 	getLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
 	includeReferencingIndexes bool,
 	visibleUploads []visibleUpload,
 	limit int,
-) ([]shared.UploadLocation, GenericCursor, error)
+) ([]shared.UploadLocation, Cursor, error)
 
 const skipPrefix = "lsif ."
 
@@ -240,13 +240,13 @@ func (s *Service) gatherLocalLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
+	cursor Cursor,
 	_ string,
 	extractPrototypeLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
 	_ bool,
 	visibleUploads []visibleUpload,
 	limit int,
-) (allLocations []shared.UploadLocation, _ GenericCursor, _ error) {
+) (allLocations []shared.UploadLocation, _ Cursor, _ error) {
 	if cursor.Phase != "local" {
 		// not our turn
 		return nil, cursor, nil
@@ -288,7 +288,7 @@ func (s *Service) gatherLocalLocations(
 			cursor.LocalLocationOffset,
 		)
 		if err != nil {
-			return nil, GenericCursor{}, err
+			return nil, Cursor{}, err
 		}
 
 		// adjust cursor offset for next page
@@ -311,7 +311,7 @@ func (s *Service) gatherLocalLocations(
 				true,
 			)
 			if err != nil {
-				return nil, GenericCursor{}, err
+				return nil, Cursor{}, err
 			}
 			allLocations = append(allLocations, adjustedLocations...)
 
@@ -340,13 +340,13 @@ func (s *Service) gatherRemoteLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
+	cursor Cursor,
 	tableName string,
 	_ extractPrototypeLocationsFromPositionFunc,
 	includeReferencingIndexes bool,
 	_ []visibleUpload,
 	limit int,
-) ([]shared.UploadLocation, GenericCursor, error) {
+) ([]shared.UploadLocation, Cursor, error) {
 	if cursor.Phase != "remote" {
 		// not our turn
 		return nil, cursor, nil
@@ -358,7 +358,7 @@ func (s *Service) gatherRemoteLocations(
 
 	monikers, err := symbolsToMonikers(cursor.SymbolNames)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	// Ensure we have a batch of upload ids over which to perform a symbol search, if such
@@ -375,7 +375,7 @@ func (s *Service) gatherRemoteLocations(
 		monikers,
 	)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	// If we have no upload ids stashed in our cursor at this point then there are no more
@@ -401,7 +401,7 @@ func (s *Service) gatherRemoteLocations(
 		cursor.RemoteLocationOffset,
 	)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	// adjust cursor offset for next page
@@ -418,7 +418,7 @@ func (s *Service) gatherRemoteLocations(
 	// Adjust locations back to target commit
 	adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, locations, false)
 	if err != nil {
-		return nil, GenericCursor{}, err
+		return nil, Cursor{}, err
 	}
 
 	return adjustedLocations, cursor, nil
@@ -428,10 +428,10 @@ func (s *Service) prepareCandidateUploads(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	cursor GenericCursor,
+	cursor Cursor,
 	includeReferencingIndexes bool,
 	monikers []precise.QualifiedMonikerData,
-) (GenericCursor, error) {
+) (Cursor, error) {
 	// We always want to look into the uploads that define one of the symbols for our
 	// "remote" phase. We'll conditionally also look at uploads that contain only a
 	// reference (see below). We deal with the former set of uploads first in the
@@ -446,7 +446,7 @@ func (s *Service) prepareCandidateUploads(
 
 		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
 		if err != nil {
-			return GenericCursor{}, err
+			return Cursor{}, err
 		}
 		var ids []int
 		for _, upload := range uploads {
@@ -478,7 +478,7 @@ func (s *Service) prepareCandidateUploads(
 			cursor.RemoteUploadOffset,                   // offset
 		)
 		if err != nil {
-			return GenericCursor{}, err
+			return Cursor{}, err
 		}
 		cursor.UploadIDs = uploadIDs
 
@@ -497,7 +497,7 @@ func (s *Service) prepareCandidateUploads(
 	//
 	// FIXME: That's a dangerous design assumption we should get rid of.
 	if _, err := s.getUploadsByIDs(ctx, cursor.UploadIDs, requestState); err != nil {
-		return GenericCursor{}, err
+		return Cursor{}, err
 	}
 
 	return cursor, nil

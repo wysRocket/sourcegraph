@@ -134,7 +134,7 @@ func NewMockLsifStore() *MockLsifStore {
 			},
 		},
 		GetMinimalBulkMonikerLocationsFunc: &LsifStoreGetMinimalBulkMonikerLocationsFunc{
-			defaultHook: func(context.Context, string, []int, []precise.MonikerData, int, int) (r0 []shared.Location, r1 int, r2 error) {
+			defaultHook: func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) (r0 []shared.Location, r1 int, r2 error) {
 				return
 			},
 		},
@@ -231,7 +231,7 @@ func NewStrictMockLsifStore() *MockLsifStore {
 			},
 		},
 		GetMinimalBulkMonikerLocationsFunc: &LsifStoreGetMinimalBulkMonikerLocationsFunc{
-			defaultHook: func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
+			defaultHook: func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
 				panic("unexpected invocation of MockLsifStore.GetMinimalBulkMonikerLocations")
 			},
 		},
@@ -1506,24 +1506,24 @@ func (c LsifStoreGetImplementationLocationsFuncCall) Results() []interface{} {
 // the GetMinimalBulkMonikerLocations method of the parent MockLsifStore
 // instance is invoked.
 type LsifStoreGetMinimalBulkMonikerLocationsFunc struct {
-	defaultHook func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error)
-	hooks       []func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error)
+	defaultHook func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error)
+	hooks       []func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error)
 	history     []LsifStoreGetMinimalBulkMonikerLocationsFuncCall
 	mutex       sync.Mutex
 }
 
 // GetMinimalBulkMonikerLocations delegates to the next hook function in the
 // queue and stores the parameter and result values of this invocation.
-func (m *MockLsifStore) GetMinimalBulkMonikerLocations(v0 context.Context, v1 string, v2 []int, v3 []precise.MonikerData, v4 int, v5 int) ([]shared.Location, int, error) {
-	r0, r1, r2 := m.GetMinimalBulkMonikerLocationsFunc.nextHook()(v0, v1, v2, v3, v4, v5)
-	m.GetMinimalBulkMonikerLocationsFunc.appendCall(LsifStoreGetMinimalBulkMonikerLocationsFuncCall{v0, v1, v2, v3, v4, v5, r0, r1, r2})
+func (m *MockLsifStore) GetMinimalBulkMonikerLocations(v0 context.Context, v1 string, v2 []int, v3 map[int]string, v4 []precise.MonikerData, v5 int, v6 int) ([]shared.Location, int, error) {
+	r0, r1, r2 := m.GetMinimalBulkMonikerLocationsFunc.nextHook()(v0, v1, v2, v3, v4, v5, v6)
+	m.GetMinimalBulkMonikerLocationsFunc.appendCall(LsifStoreGetMinimalBulkMonikerLocationsFuncCall{v0, v1, v2, v3, v4, v5, v6, r0, r1, r2})
 	return r0, r1, r2
 }
 
 // SetDefaultHook sets function that is called when the
 // GetMinimalBulkMonikerLocations method of the parent MockLsifStore
 // instance is invoked and the hook queue is empty.
-func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) SetDefaultHook(hook func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error)) {
+func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) SetDefaultHook(hook func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error)) {
 	f.defaultHook = hook
 }
 
@@ -1532,7 +1532,7 @@ func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) SetDefaultHook(hook func(c
 // instance invokes the hook at the front of the queue and discards it.
 // After the queue is empty, the default hook function is invoked for any
 // future action.
-func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) PushHook(hook func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error)) {
+func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) PushHook(hook func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error)) {
 	f.mutex.Lock()
 	f.hooks = append(f.hooks, hook)
 	f.mutex.Unlock()
@@ -1541,19 +1541,19 @@ func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) PushHook(hook func(context
 // SetDefaultReturn calls SetDefaultHook with a function that returns the
 // given values.
 func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) SetDefaultReturn(r0 []shared.Location, r1 int, r2 error) {
-	f.SetDefaultHook(func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
+	f.SetDefaultHook(func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
 		return r0, r1, r2
 	})
 }
 
 // PushReturn calls PushHook with a function that returns the given values.
 func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) PushReturn(r0 []shared.Location, r1 int, r2 error) {
-	f.PushHook(func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
+	f.PushHook(func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
 		return r0, r1, r2
 	})
 }
 
-func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) nextHook() func(context.Context, string, []int, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
+func (f *LsifStoreGetMinimalBulkMonikerLocationsFunc) nextHook() func(context.Context, string, []int, map[int]string, []precise.MonikerData, int, int) ([]shared.Location, int, error) {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 
@@ -1599,13 +1599,16 @@ type LsifStoreGetMinimalBulkMonikerLocationsFuncCall struct {
 	Arg2 []int
 	// Arg3 is the value of the 4th argument passed to this method
 	// invocation.
-	Arg3 []precise.MonikerData
+	Arg3 map[int]string
 	// Arg4 is the value of the 5th argument passed to this method
 	// invocation.
-	Arg4 int
+	Arg4 []precise.MonikerData
 	// Arg5 is the value of the 6th argument passed to this method
 	// invocation.
 	Arg5 int
+	// Arg6 is the value of the 7th argument passed to this method
+	// invocation.
+	Arg6 int
 	// Result0 is the value of the 1st result returned from this method
 	// invocation.
 	Result0 []shared.Location
@@ -1620,7 +1623,7 @@ type LsifStoreGetMinimalBulkMonikerLocationsFuncCall struct {
 // Args returns an interface slice containing the arguments of this
 // invocation.
 func (c LsifStoreGetMinimalBulkMonikerLocationsFuncCall) Args() []interface{} {
-	return []interface{}{c.Arg0, c.Arg1, c.Arg2, c.Arg3, c.Arg4, c.Arg5}
+	return []interface{}{c.Arg0, c.Arg1, c.Arg2, c.Arg3, c.Arg4, c.Arg5, c.Arg6}
 }
 
 // Results returns an interface slice containing the results of this

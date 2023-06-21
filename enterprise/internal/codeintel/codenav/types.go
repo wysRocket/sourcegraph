@@ -77,7 +77,7 @@ type AdjustedCodeIntelligenceRange struct {
 	HoverText       string
 }
 
-type GenericCursor struct {
+type Cursor struct {
 	Phase                string                `json:"k0"` // ""/"local", "remote", or "done"
 	VisibleUploads       []CursorVisibleUpload `json:"k1"` // root uploads covering a particular code location
 	LocalUploadOffset    int                   `json:"k2"` // number of consumed visible uploads
@@ -97,7 +97,7 @@ type CursorVisibleUpload struct {
 	TargetPathWithoutRoot string          `json:"k3"`
 }
 
-var exhaustedCursor = GenericCursor{Phase: "done"}
+var exhaustedCursor = Cursor{Phase: "done"}
 
 // referencesCursor stores (enough of) the state of a previous References request used to
 // calculate the offset into the result set to be returned by the current request.

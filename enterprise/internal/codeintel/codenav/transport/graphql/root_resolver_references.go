@@ -37,7 +37,7 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 	// is used to resolve each page. This cursor will be modified in-place to become the
 	// cursor used to fetch the subsequent page of results in this result set.
 	var nextCursor string
-	cursor, err := decodeGenericCursor(requestArgs.RawCursor)
+	cursor, err := decodeTraversalCursor(requestArgs.RawCursor)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("invalid cursor: %q", rawCursor))
 	}
@@ -48,7 +48,7 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 	}
 
 	if refCursor.Phase != "done" {
-		nextCursor = encodeGenericCursor(refCursor)
+		nextCursor = encodeTraversalCursor(refCursor)
 	}
 
 	if args.Filter != nil && *args.Filter != "" {
@@ -67,22 +67,22 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 //
 //
 
-func decodeGenericCursor(rawEncoded string) (codenav.GenericCursor, error) {
+func decodeTraversalCursor(rawEncoded string) (codenav.Cursor, error) {
 	if rawEncoded == "" {
-		return codenav.GenericCursor{}, nil
+		return codenav.Cursor{}, nil
 	}
 
 	raw, err := base64.RawURLEncoding.DecodeString(rawEncoded)
 	if err != nil {
-		return codenav.GenericCursor{}, err
+		return codenav.Cursor{}, err
 	}
 
-	var cursor codenav.GenericCursor
+	var cursor codenav.Cursor
 	err = json.Unmarshal(raw, &cursor)
 	return cursor, err
 }
 
-func encodeGenericCursor(cursor codenav.GenericCursor) string {
+func encodeTraversalCursor(cursor codenav.Cursor) string {
 	rawEncoded, _ := json.Marshal(cursor)
 	return base64.RawURLEncoding.EncodeToString(rawEncoded)
 }

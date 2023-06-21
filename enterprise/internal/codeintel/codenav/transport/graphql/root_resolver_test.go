@@ -112,8 +112,8 @@ func TestReferences(t *testing.T) {
 	)
 
 	offset := int32(25)
-	mockRefCursor := codenav.GenericCursor{Phase: "local"}
-	encodedCursor := encodeGenericCursor(mockRefCursor)
+	mockRefCursor := codenav.Cursor{Phase: "local"}
+	encodedCursor := encodeTraversalCursor(mockRefCursor)
 	mockCursor := base64.StdEncoding.EncodeToString([]byte(encodedCursor))
 
 	args := &resolverstubs.LSIFPagedQueryPositionArgs{
