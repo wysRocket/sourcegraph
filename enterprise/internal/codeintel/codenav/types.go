@@ -78,16 +78,26 @@ type AdjustedCodeIntelligenceRange struct {
 }
 
 type GenericCursor struct {
-	CursorsToVisibleUploads []CursorToVisibleUpload
-	Phase                   string
-	SymbolNames             []string
-	SkipPathsByUploadID     map[int]string
-	RemoteUploadOffset      int
-	UploadIDs               []int
-	RemoteLocationOffset    int
-	LocalUploadOffset       int
-	LocalLocationOffset     int
+	Phase                string                `json:"k0"`
+	VisibleUploads       []CursorVisibleUpload `json:"k1"`
+	LocalUploadOffset    int                   `json:"k2"`
+	LocalLocationOffset  int                   `json:"k3"`
+	SymbolNames          []string              `json:"k4"`
+	SkipPathsByUploadID  map[int]string        `json:"k5"`
+	DefinitionIDs        []int                 `json:"k6"`
+	UploadIDs            []int                 `json:"k7"`
+	RemoteUploadOffset   int                   `json:"k8"`
+	RemoteLocationOffset int                   `json:"k9"`
 }
+
+type CursorVisibleUpload struct {
+	DumpID                int             `json:"k0"`
+	TargetPath            string          `json:"k1"`
+	TargetPosition        shared.Position `json:"k2"`
+	TargetPathWithoutRoot string          `json:"k3"`
+}
+
+var exhaustedCursor = GenericCursor{Phase: "done"}
 
 // referencesCursor stores (enough of) the state of a previous References request used to
 // calculate the offset into the result set to be returned by the current request.

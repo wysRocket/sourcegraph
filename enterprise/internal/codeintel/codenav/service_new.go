@@ -2,6 +2,7 @@ package codenav
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
@@ -13,56 +14,67 @@ import (
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/precise"
 )
 
-func (s *Service) NewGetDefinitions(ctx context.Context, args RequestArgs, requestState RequestState) (_ []shared.UploadLocation, err error) {
+func (s *Service) NewGetDefinitions(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+) (_ []shared.UploadLocation, err error) {
 	locations, _, err := s.gatherLocations(
-		ctx,
-		args,
-		requestState,
-		s.operations.getDefinitions,
-		GenericCursor{},
-		"definitions",
-		s.makeDefinitionUploadFactory(requestState),
+		ctx, args, requestState, GenericCursor{},
+
+		s.operations.getDefinitions, // operation
+		"definitions",               // tableName
+		false,                       // includeReferencingIndexes
 		s.lsifstore.ExtractDefinitionLocationsFromPosition,
 	)
 
 	return locations, err
 }
 
-func (s *Service) NewGetReferences(ctx context.Context, args RequestArgs, requestState RequestState, cursor GenericCursor) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+func (s *Service) NewGetReferences(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
 	return s.gatherLocations(
-		ctx,
-		args,
-		requestState,
-		s.operations.getReferences,
-		cursor,
-		"references",
-		s.makeReferencesUploadFactory(args, requestState),
+		ctx, args, requestState, cursor,
+
+		s.operations.getReferences, // operation
+		"references",               // tableName
+		true,                       // includeReferencingIndexes
 		s.lsifstore.ExtractReferenceLocationsFromPosition,
 	)
 }
 
-func (s *Service) NewGetImplementations(ctx context.Context, args RequestArgs, requestState RequestState, cursor GenericCursor) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+func (s *Service) NewGetImplementations(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
 	return s.gatherLocations(
-		ctx,
-		args,
-		requestState,
-		s.operations.getImplementations,
-		cursor,
-		"implementations",
-		s.makeReferencesUploadFactory(args, requestState),
+		ctx, args, requestState, cursor,
+
+		s.operations.getImplementations, // operation
+		"implementations",               // tableName
+		true,                            // includeReferencingIndexes
 		s.lsifstore.ExtractImplementationLocationsFromPosition,
 	)
 }
 
-func (s *Service) NewGetPrototypes(ctx context.Context, args RequestArgs, requestState RequestState, cursor GenericCursor) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
+func (s *Service) NewGetPrototypes(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+) (_ []shared.UploadLocation, nextCursor GenericCursor, err error) {
 	return s.gatherLocations(
-		ctx,
-		args,
-		requestState,
-		s.operations.getPrototypes,
-		cursor,
-		"definitions", // N.B.
-		s.makeDefinitionUploadFactory(requestState),
+		ctx, args, requestState, cursor,
+
+		s.operations.getPrototypes, // operation
+		"definitions",              // N.B.: TODO
+		false,                      // includeReferencingIndexes
 		s.lsifstore.ExtractPrototypeLocationsFromPosition,
 	)
 }
@@ -70,89 +82,28 @@ func (s *Service) NewGetPrototypes(ctx context.Context, args RequestArgs, reques
 //
 //
 
-func (s *Service) makeDefinitionUploadFactory(requestState RequestState) getSearchableUploadIDsFunc {
-	return func(ctx context.Context, monikers []precise.QualifiedMonikerData, limit, offset int) ([]int, int, error) {
-		// TODO - inline
-		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		var ids []int
-		for _, u := range uploads {
-			ids = append(ids, u.ID)
-		}
-
-		return ids, len(ids), nil
-	}
-}
-
-func (s *Service) makeReferencesUploadFactory(args RequestArgs, requestState RequestState) getSearchableUploadIDsFunc {
-	return func(ctx context.Context, monikers []precise.QualifiedMonikerData, limit, offset int) ([]int, int, error) {
-		// TODO - inline
-		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		var ids []int
-		for _, u := range uploads {
-			ids = append(ids, u.ID)
-		}
-
-		// TODO - paginate
-		referenceIDs, _, totalCount, err := s.uploadSvc.GetUploadIDsWithReferences(
-			ctx,
-			monikers,
-			ids,
-			args.RepositoryID,
-			args.Commit,
-			10000, // limit
-			0,     // offset
-		)
-		if err != nil {
-			return nil, 0, err
-		}
-		// Fetch the upload records we don't currently have hydrated and insert them into the map
-		if _, err := s.getUploadsByIDs(ctx, referenceIDs, requestState); err != nil {
-			return nil, 0, err
-		}
-
-		return append(ids, referenceIDs...), len(ids) + totalCount, nil
-	}
-}
-
-//
-//
-
-type getSearchableUploadIDsFunc func(
+type extractPrototypeLocationsFromPositionFunc func(
 	ctx context.Context,
-	monikers []precise.QualifiedMonikerData,
-	limit, offset int,
-) ([]int, int, error)
-
-type getLocationsFromPositionFunc func(
-	ctx context.Context, bundleID int,
+	bundleID int,
 	path string,
-	line, character int,
-	limit, offset int,
+	line int,
+	character int,
+	limit int,
+	offset int,
 ) ([]shared.Location, int, []string, error)
-
-const skipPrefix = "lsif ."
-
-var exhaustedCursor = GenericCursor{Phase: "done"}
 
 func (s *Service) gatherLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
-	operation *observation.Operation,
 	cursor GenericCursor,
+	operation *observation.Operation,
 	tableName string,
-	getSearchableUploadIDs getSearchableUploadIDsFunc,
-	getLocationsFromPosition getLocationsFromPositionFunc,
+	includeReferencingIndexes bool,
+	extractPrototypeLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
 ) (allLocations []shared.UploadLocation, _ GenericCursor, err error) {
-	ctx, trace, endObservation := observeResolver(ctx, &err, operation, serviceObserverThreshold, observation.Args{Attrs: []attribute.KeyValue{
+	// TODO - update, add trace logs below
+	ctx, _, endObservation := observeResolver(ctx, &err, operation, serviceObserverThreshold, observation.Args{Attrs: []attribute.KeyValue{
 		attribute.Int("repositoryID", args.RepositoryID),
 		attribute.String("commit", args.Commit),
 		attribute.String("path", args.Path),
@@ -163,24 +114,26 @@ func (s *Service) gatherLocations(
 	}})
 	defer endObservation()
 
-	_ = trace // TODO - add tracing
-
 	if cursor.Phase == "" {
 		cursor.Phase = "local"
 	}
 
-	// Determine the set of visible uploads for the source commit
-	visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(
+	// First, we determine the set of SCIP indexes that can act as one of our "roots" for the
+	// following traversal. We see which SCIP indexes cover the particular query position and
+	// stash this metadata on the cursor for subsequent queries.
+
+	var visibleUploads []visibleUpload
+
+	// N.B.: cursor is purposefully re-assigned here
+	visibleUploads, cursor, err = s.newGetVisibleUploadsFromCursor(
 		ctx,
-		args.Line,
-		args.Character,
-		&cursor.CursorsToVisibleUploads,
+		args,
 		requestState,
+		cursor,
 	)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
-	cursor.CursorsToVisibleUploads = cursorsToVisibleUploads
 
 	// The following loop calls local and remote location resolution phases in alternation. As
 	// each phase controls whether or not it should execute, this is safe.
@@ -190,8 +143,8 @@ func (s *Service) gatherLocations(
 	// the remote phase has additional results that could fit on the first page. Similarly, if
 	// there are many references to a symbol over a large number of indexes but each index has
 	// only a small number of locations, they can all be combined into a single page. Running
-	// each phase multiple times and combining the results will create a full page (if the result
-	// set was not exhausted) on each round-trip call to this service's method.
+	// each phase multiple times and combining the results will create a full page, if the
+	// result set was not exhausted),on each round-trip call to this service's method.
 
 outer:
 	for cursor.Phase != "done" {
@@ -210,8 +163,8 @@ outer:
 				requestState,
 				cursor,
 				tableName,
-				getLocationsFromPosition,
-				getSearchableUploadIDs,
+				extractPrototypeLocationsFromPosition,
+				includeReferencingIndexes,
 				visibleUploads,
 				args.Limit-len(allLocations), // remaining space in the page
 			)
@@ -225,27 +178,72 @@ outer:
 	return allLocations, cursor, nil
 }
 
+func (s *Service) newGetVisibleUploadsFromCursor(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+) ([]visibleUpload, GenericCursor, error) {
+	if cursor.VisibleUploads != nil {
+		visibleUploads := make([]visibleUpload, 0, len(cursor.VisibleUploads))
+		for _, u := range cursor.VisibleUploads {
+			upload, ok := requestState.dataLoader.GetUploadFromCacheMap(u.DumpID)
+			if !ok {
+				return nil, GenericCursor{}, ErrConcurrentModification
+			}
+
+			visibleUploads = append(visibleUploads, visibleUpload{
+				Upload:                upload,
+				TargetPath:            u.TargetPath,
+				TargetPosition:        u.TargetPosition,
+				TargetPathWithoutRoot: u.TargetPathWithoutRoot,
+			})
+		}
+
+		return visibleUploads, cursor, nil
+	}
+
+	visibleUploads, err := s.getVisibleUploads(ctx, args.Line, args.Character, requestState)
+	if err != nil {
+		return nil, GenericCursor{}, err
+	}
+
+	cursorVisibleUpload := make([]CursorVisibleUpload, 0, len(visibleUploads))
+	for i := range visibleUploads {
+		cursorVisibleUpload = append(cursorVisibleUpload, CursorVisibleUpload{
+			DumpID:                visibleUploads[i].Upload.ID,
+			TargetPath:            visibleUploads[i].TargetPath,
+			TargetPosition:        visibleUploads[i].TargetPosition,
+			TargetPathWithoutRoot: visibleUploads[i].TargetPathWithoutRoot,
+		})
+	}
+
+	cursor.VisibleUploads = cursorVisibleUpload
+	return visibleUploads, cursor, nil
+}
+
 type gatherLocationsFunc func(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
 	cursor GenericCursor,
 	tableName string,
-	getLocationsFromPosition getLocationsFromPositionFunc,
-	getSearchableUploadIDs getSearchableUploadIDsFunc,
+	getLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
+	includeReferencingIndexes bool,
 	visibleUploads []visibleUpload,
 	limit int,
 ) ([]shared.UploadLocation, GenericCursor, error)
 
-// WIP
+const skipPrefix = "lsif ."
+
 func (s *Service) gatherLocalLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
 	cursor GenericCursor,
-	tableName string,
-	getLocationsFromPosition getLocationsFromPositionFunc,
-	_ getSearchableUploadIDsFunc,
+	_ string,
+	extractPrototypeLocationsFromPosition extractPrototypeLocationsFromPositionFunc,
+	_ bool,
 	visibleUploads []visibleUpload,
 	limit int,
 ) (allLocations []shared.UploadLocation, _ GenericCursor, _ error) {
@@ -280,7 +278,7 @@ func (s *Service) gatherLocalLocations(
 		// Gather response locations directly from the document containing the
 		// target position. This may also return relevant symbol names that we
 		// collect for a remote search.
-		locations, totalCount, symbolNames, err := getLocationsFromPosition(
+		locations, totalCount, symbolNames, err := extractPrototypeLocationsFromPosition(
 			ctx,
 			visibleUpload.Upload.ID,
 			visibleUpload.TargetPathWithoutRoot,
@@ -338,15 +336,14 @@ func (s *Service) gatherLocalLocations(
 	return allLocations, cursor, nil
 }
 
-// WIP
 func (s *Service) gatherRemoteLocations(
 	ctx context.Context,
 	args RequestArgs,
 	requestState RequestState,
 	cursor GenericCursor,
 	tableName string,
-	_ getLocationsFromPositionFunc,
-	getSearchableUploadIDs getSearchableUploadIDsFunc,
+	_ extractPrototypeLocationsFromPositionFunc,
+	includeReferencingIndexes bool,
 	_ []visibleUpload,
 	limit int,
 ) ([]shared.UploadLocation, GenericCursor, error) {
@@ -364,46 +361,27 @@ func (s *Service) gatherRemoteLocations(
 		return nil, GenericCursor{}, err
 	}
 
-	uploadsLimit := requestState.maximumIndexesPerMonikerSearch
-
-	// If we have no upload ids stashed in our cursor, then we'll try to fetch the next
-	// batch of uploads in which we'll search for symbol names. If our remote upload offset
-	// is set to -1 here, then it indicates the end of the set of relevant upload records.
-
-	if len(cursor.UploadIDs) == 0 && cursor.RemoteUploadOffset != -1 {
-		uploadIDs, totalCount, err := getSearchableUploadIDs(
-			ctx,
-			monikers,
-			uploadsLimit,
-			cursor.RemoteUploadOffset,
-		)
-		if err != nil {
-			return nil, GenericCursor{}, err
-		}
-		cursor.UploadIDs = uploadIDs
-
-		// adjust cursor offset for next page
-		cursor.RemoteUploadOffset += len(uploadIDs)
-		if cursor.RemoteUploadOffset >= totalCount {
-			// We've consumed all upload batches
-			cursor.RemoteUploadOffset = -1
-		}
+	// Ensure we have a batch of upload ids over which to perform a symbol search, if such
+	// a batch exists. This batch must be hydrated in the associated request data loader.
+	// See the function body for additional complaints on this subject.
+	//
+	// N.B.: cursor is purposefully re-assigned here
+	cursor, err = s.prepareCandidateUploads(
+		ctx,
+		args,
+		requestState,
+		cursor,
+		includeReferencingIndexes,
+		monikers,
+	)
+	if err != nil {
+		return nil, GenericCursor{}, err
 	}
 
 	// If we have no upload ids stashed in our cursor at this point then there are no more
 	// uploads to search in and we've reached the end of our our result set. Congratulations!
 	if len(cursor.UploadIDs) == 0 {
 		return nil, exhaustedCursor, nil
-	}
-
-	// Hydrate upload records into the request state data loader. This must be called prior
-	// to getUploadLocations below, which will silently throw out records belonging to uploads
-	// that have not yet fetched from the database. We've assumed that the data loader is
-	// consistently up-to-date with any extant upload identifier reference.
-	//
-	// FIXME: That's a dangerous design assumption we should get rid of.
-	if _, err := s.getUploadsByIDs(ctx, cursor.UploadIDs, requestState); err != nil {
-		return nil, GenericCursor{}, err
 	}
 
 	// Finally, query time!
@@ -444,6 +422,85 @@ func (s *Service) gatherRemoteLocations(
 	}
 
 	return adjustedLocations, cursor, nil
+}
+
+func (s *Service) prepareCandidateUploads(
+	ctx context.Context,
+	args RequestArgs,
+	requestState RequestState,
+	cursor GenericCursor,
+	includeReferencingIndexes bool,
+	monikers []precise.QualifiedMonikerData,
+) (GenericCursor, error) {
+	// We always want to look into the uploads that define one of the symbols for our
+	// "remote" phase. We'll conditionally also look at uploads that contain only a
+	// reference (see below). We deal with the former set of uploads first in the
+	// cursor.
+
+	if len(cursor.DefinitionIDs) == 0 && len(cursor.UploadIDs) == 0 && cursor.RemoteUploadOffset == 0 {
+		// N.B.: We only end up in in this branch on the first time it's invoked while
+		// in the remote phase. If there truly are no definitions, we'll either have a
+		// non-empty set of upload ids, or a non-zero remote upload offset on the next
+		// invocation. If there are neither definitions nor an upload batch, we'll end
+		// up returning an exhausted cursor from _this_ invocation.
+
+		uploads, err := s.getUploadsWithDefinitionsForMonikers(ctx, monikers, requestState)
+		if err != nil {
+			return GenericCursor{}, err
+		}
+		var ids []int
+		for _, upload := range uploads {
+			ids = append(ids, upload.ID)
+		}
+		sort.Ints(ids)
+
+		cursor.UploadIDs = ids
+		cursor.DefinitionIDs = ids
+	}
+
+	if !includeReferencingIndexes {
+		// This traversal isn't looking in uploads without definitions to one of the symbols
+		return cursor, nil
+	}
+
+	// If we have no upload ids stashed in our cursor, then we'll try to fetch the next
+	// batch of uploads in which we'll search for symbol names. If our remote upload offset
+	// is set to -1 here, then it indicates the end of the set of relevant upload records.
+
+	if len(cursor.UploadIDs) == 0 && cursor.RemoteUploadOffset != -1 {
+		uploadIDs, _, totalCount, err := s.uploadSvc.GetUploadIDsWithReferences(
+			ctx,
+			monikers,
+			cursor.DefinitionIDs,
+			args.RepositoryID,
+			args.Commit,
+			requestState.maximumIndexesPerMonikerSearch, // limit
+			cursor.RemoteUploadOffset,                   // offset
+		)
+		if err != nil {
+			return GenericCursor{}, err
+		}
+		cursor.UploadIDs = uploadIDs
+
+		// adjust cursor offset for next page
+		cursor.RemoteUploadOffset += len(uploadIDs)
+		if cursor.RemoteUploadOffset >= totalCount {
+			// We've consumed all upload batches
+			cursor.RemoteUploadOffset = -1
+		}
+	}
+
+	// Hydrate upload records into the request state data loader. This must be called prior
+	// to the invocation of getUploadLocation, which will silently throw out records belonging
+	// to uploads that have not yet fetched from the database. We've assumed that the data loader
+	// is consistently up-to-date with any extant upload identifier reference.
+	//
+	// FIXME: That's a dangerous design assumption we should get rid of.
+	if _, err := s.getUploadsByIDs(ctx, cursor.UploadIDs, requestState); err != nil {
+		return GenericCursor{}, err
+	}
+
+	return cursor, nil
 }
 
 //
