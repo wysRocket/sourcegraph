@@ -24,7 +24,7 @@ func SafeRedirectURL(urlStr string) string {
 	return u.String()
 }
 
-// Add a ?signup= or ?signin= parameter to the redirect URL.
+// Add a ?signup= or ?signin= parameter to a redirect URL.
 func AddPostAuthRedirectParametersToURL(urlStr url.URL, newUserCreated bool) {
 	q = u.Query()
 	if newUserCreated {
