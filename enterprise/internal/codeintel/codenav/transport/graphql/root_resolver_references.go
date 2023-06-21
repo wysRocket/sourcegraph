@@ -23,6 +23,8 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 		return nil, ErrIllegalLimit
 	}
 
+	fmt.Print("REFERENCES REQUEST\n")
+
 	rawCursor, err := decodeCursor(args.After)
 	if err != nil {
 		return nil, err
@@ -49,6 +51,7 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 
 	if refCursor.Phase != "done" {
 		nextCursor = encodeGenericCursor(refCursor)
+		fmt.Printf("RET:\n> %v\n> %v\n\n", refCursor, nextCursor)
 	}
 
 	if args.Filter != nil && *args.Filter != "" {
@@ -69,8 +72,10 @@ func (r *gitBlobLSIFDataResolver) References(ctx context.Context, args *resolver
 
 func decodeGenericCursor(rawEncoded string) (codenav.GenericCursor, error) {
 	if rawEncoded == "" {
-		return codenav.GenericCursor{Phase: "local"}, nil
+		return codenav.GenericCursor{}, nil
 	}
+
+	fmt.Printf("CURSOR: %v\n", rawEncoded)
 
 	raw, err := base64.RawURLEncoding.DecodeString(rawEncoded)
 	if err != nil {
@@ -79,6 +84,7 @@ func decodeGenericCursor(rawEncoded string) (codenav.GenericCursor, error) {
 
 	var cursor codenav.GenericCursor
 	err = json.Unmarshal(raw, &cursor)
+	fmt.Printf("DECODED:\n> %v (%v)\n\n", cursor, err)
 	return cursor, err
 }
 

@@ -78,8 +78,15 @@ type AdjustedCodeIntelligenceRange struct {
 }
 
 type GenericCursor struct {
-	CursorsToVisibleUploads []CursorToVisibleUpload `json:"adjustedUploads"`
-	Phase                   string                  `json:"phase"`
+	CursorsToVisibleUploads []CursorToVisibleUpload
+	Phase                   string
+	Symbols                 []string
+	SkipPaths               map[int]string
+	RemoteUploadOffset      int
+	UploadIDs               []int
+	RemoteLocationOffset    int
+	LocalUploadOffset       int
+	LocalLocationOffset     int
 }
 
 // referencesCursor stores (enough of) the state of a previous References request used to
