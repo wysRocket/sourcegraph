@@ -2,7 +2,6 @@ package codenav
 
 import (
 	"context"
-	"sort"
 	"strings"
 
 	"github.com/sourcegraph/scip/bindings/go/scip"
@@ -154,6 +153,9 @@ func (s *Service) gatherLocations(
 	}})
 	defer endObservation()
 
+	_ = trace // TODO - add tracing
+
+	// PHASE 1:
 	// Determine the set of visible uploads for the source commit
 	visibleUploads, cursorsToVisibleUploads, err := s.getVisibleUploadsFromCursor(ctx, args.Line, args.Character, &cursor.CursorsToVisibleUploads, requestState)
 	if err != nil {
@@ -161,14 +163,18 @@ func (s *Service) gatherLocations(
 	}
 	cursor.CursorsToVisibleUploads = cursorsToVisibleUploads
 
-	var allLocations []shared.UploadLocation
+	// PHASE 2:
+	// Look in the user's current path/location in the visible uploads and pull
+	// locations directly from that document. As a side-effect, we'll also gather
+	// the set of relevant symbol names to search over remote indexes, depending
+	// on the specific relationship being queried.
+
+	var adjustedLocalLocations []shared.UploadLocation
 	allSymbols := map[string]struct{}{}
 	skipPaths := map[int]string{}
 
 	for i := range visibleUploads {
-		trace.AddEvent("TODO Domain Owner", attribute.Int("uploadID", visibleUploads[i].Upload.ID))
-
-		locations, _, uploadSymbols, err := getLocationsFromPosition(
+		localLocations, _, uploadSymbols, err := getLocationsFromPosition(
 			ctx,
 			visibleUploads[i].Upload.ID,
 			visibleUploads[i].TargetPathWithoutRoot,
@@ -180,16 +186,16 @@ func (s *Service) gatherLocations(
 		if err != nil {
 			return nil, GenericCursor{}, err
 		}
-		if len(locations) > 0 {
-			uploadLocations, err := s.getUploadLocations(ctx, args, requestState, locations, true)
+		if len(localLocations) > 0 {
+			adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, localLocations, true)
 			if err != nil {
 				return nil, GenericCursor{}, err
 			}
 			if stopAfterFirstResult {
-				return uploadLocations, exhaustedCursor, nil
+				return adjustedLocations, exhaustedCursor, nil
 			}
 
-			allLocations = append(allLocations, uploadLocations...)
+			adjustedLocalLocations = append(adjustedLocalLocations, adjustedLocations...)
 			skipPaths[visibleUploads[i].Upload.ID] = visibleUploads[i].TargetPathWithoutRoot
 		}
 
@@ -204,35 +210,39 @@ func (s *Service) gatherLocations(
 	for symbolName := range allSymbols {
 		symbolNames = append(symbolNames, symbolName)
 	}
-	sort.Strings(symbolNames)
-
 	monikers, err := symbolsToMonikers(symbolNames)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
+
+	// PHASE 3:
+	// Determine the set of uploads that could have locations related to the given
+	// set of target symbol names.
 
 	uploadIDs, err := getSearchableUploadIDs(ctx, monikers)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
+	// PHASE 4:
+	// Search in batches for target symbol names over our selected candidate indexes
+
 	monikerArgs := make([]precise.MonikerData, 0, len(monikers))
 	for _, moniker := range monikers {
 		monikerArgs = append(monikerArgs, moniker.MonikerData)
 	}
-
-	locations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, skipPaths, monikerArgs, 10000, 0)
+	remoteLocations, _, err := s.lsifstore.GetMinimalBulkMonikerLocations(ctx, tableName, uploadIDs, skipPaths, monikerArgs, 10000, 0)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
 	// Adjust locations back to target commit
-	adjustedLocations, err := s.getUploadLocations(ctx, args, requestState, locations, false)
+	adjustedRemoteLocations, err := s.getUploadLocations(ctx, args, requestState, remoteLocations, false)
 	if err != nil {
 		return nil, GenericCursor{}, err
 	}
 
-	return append(allLocations, adjustedLocations...), exhaustedCursor, nil
+	return append(adjustedLocalLocations, adjustedRemoteLocations...), exhaustedCursor, nil
 }
 
 func symbolsToMonikers(symbolNames []string) ([]precise.QualifiedMonikerData, error) {
