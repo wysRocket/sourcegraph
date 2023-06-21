@@ -11,7 +11,6 @@ import (
 	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/codenav/shared"
 	"github.com/sourcegraph/sourcegraph/internal/observation"
 	"github.com/sourcegraph/sourcegraph/lib/codeintel/precise"
-	"github.com/sourcegraph/sourcegraph/lib/errors"
 )
 
 func (s *Service) NewGetDefinitions(ctx context.Context, args RequestArgs, requestState RequestState) (_ []shared.UploadLocation, err error) {
@@ -179,7 +178,7 @@ func (s *Service) gatherLocations(
 			0,
 		)
 		if err != nil {
-			return nil, GenericCursor{}, errors.Wrap(err, "lsifStore.gatherLocations")
+			return nil, GenericCursor{}, err
 		}
 		if len(locations) > 0 {
 			uploadLocations, err := s.getUploadLocations(ctx, args, requestState, locations, true)
