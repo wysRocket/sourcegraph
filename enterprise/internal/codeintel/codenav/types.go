@@ -80,8 +80,8 @@ type AdjustedCodeIntelligenceRange struct {
 type GenericCursor struct {
 	CursorsToVisibleUploads []CursorToVisibleUpload
 	Phase                   string
-	Symbols                 []string
-	SkipPaths               map[int]string
+	SymbolNames             []string
+	SkipPathsByUploadID     map[int]string
 	RemoteUploadOffset      int
 	UploadIDs               []int
 	RemoteLocationOffset    int
