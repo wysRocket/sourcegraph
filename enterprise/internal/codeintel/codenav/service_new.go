@@ -186,12 +186,11 @@ func (s *Service) gatherLocations(
 			if err != nil {
 				return nil, GenericCursor{}, err
 			}
-			allLocations = append(allLocations, uploadLocations...)
-
 			if stopAfterFirstResult {
-				return allLocations, exhaustedCursor, nil
+				return uploadLocations, exhaustedCursor, nil
 			}
 
+			allLocations = append(allLocations, uploadLocations...)
 			skipPaths[visibleUploads[i].Upload.ID] = visibleUploads[i].TargetPathWithoutRoot
 		}
 
