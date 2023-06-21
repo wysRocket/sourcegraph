@@ -78,16 +78,16 @@ type AdjustedCodeIntelligenceRange struct {
 }
 
 type GenericCursor struct {
-	Phase                string                `json:"k0"`
-	VisibleUploads       []CursorVisibleUpload `json:"k1"`
-	LocalUploadOffset    int                   `json:"k2"`
-	LocalLocationOffset  int                   `json:"k3"`
-	SymbolNames          []string              `json:"k4"`
-	SkipPathsByUploadID  map[int]string        `json:"k5"`
-	DefinitionIDs        []int                 `json:"k6"`
-	UploadIDs            []int                 `json:"k7"`
-	RemoteUploadOffset   int                   `json:"k8"`
-	RemoteLocationOffset int                   `json:"k9"`
+	Phase                string                `json:"k0"` // ""/"local", "remote", or "done"
+	VisibleUploads       []CursorVisibleUpload `json:"k1"` // root uploads covering a particular code location
+	LocalUploadOffset    int                   `json:"k2"` // number of consumed visible uploads
+	LocalLocationOffset  int                   `json:"k3"` // offset within locations of VisibleUploads[LocalUploadOffset:]
+	SymbolNames          []string              `json:"k4"` // symbol names extracted from visible uploads
+	SkipPathsByUploadID  map[int]string        `json:"k5"` // paths to skip for particular uploads in the remote phase
+	DefinitionIDs        []int                 `json:"k6"` // identifiers of uploads defining relevant symbol names
+	UploadIDs            []int                 `json:"k7"` // current batch of uploads in which to search
+	RemoteUploadOffset   int                   `json:"k8"` // number of searched (to completion) uploads
+	RemoteLocationOffset int                   `json:"k9"` // offset within locations of the current upload batch
 }
 
 type CursorVisibleUpload struct {
