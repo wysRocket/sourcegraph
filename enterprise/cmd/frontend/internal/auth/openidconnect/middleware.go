@@ -331,14 +331,7 @@ func AuthCallback(db database.DB, r *http.Request, stateCookieName, usernamePref
 	}
 
 	// Add a ?signup= or ?signin= parameter to the redirect URL.
-	redirectURL = url.Parse(state.Redirect)
-	q = redirectURL.Query()
-	if newUserCreated {
-		q.Add("signup", "")
-	} else {
-		q.Add("signin", "")
-	}
-	redirectURL.RawQuery = q.Encode()
+	redirectURL = auth.AddPostAuthRedirectParametersToString(state.Redirect, newUserCreated)
 
 	user, err := db.Users().GetByID(r.Context(), actor.UID)
 	if err != nil {
@@ -354,7 +347,7 @@ func AuthCallback(db database.DB, r *http.Request, stateCookieName, usernamePref
 			AccessToken: oauth2Token.AccessToken,
 			TokenType:   oauth2Token.TokenType,
 		},
-		Redirect: redirectURL.String(),
+		Redirect: auth.SafeRedirectURL(redirectURL),
 	}, "", 0, nil
 }
 

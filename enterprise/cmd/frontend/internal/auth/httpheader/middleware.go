@@ -119,15 +119,7 @@ func middleware(db database.DB) func(next http.Handler) http.Handler {
 				return
 			}
 
-			// Add a ?signup= or ?signin= parameter to the redirect URL.
-			q := r.URL.Query()
-			if newUserCreated {
-				q.Add("signup", "")
-			} else {
-				q.Add("signin", "")
-			}
-			r.URL.RawQuery = q.Encode()
-
+			auth.AddPostAuthRedirectParametersToURL(r.URL, newUserCreated)
 			r = r.WithContext(actor.WithActor(r.Context(), &actor.Actor{UID: userID}))
 			next.ServeHTTP(w, r)
 		})
