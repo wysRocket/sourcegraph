@@ -197,7 +197,7 @@ require (
 	github.com/sourcegraph/jsonx v0.0.0-20200629203448-1a936bd500cf
 	github.com/sourcegraph/log v0.0.0-20230523201558-ad2d71b4d2ee
 	github.com/sourcegraph/run v0.12.0
-	github.com/sourcegraph/scip v0.3.1-0.20230623045951-a5e3a22821e2
+	github.com/sourcegraph/scip v0.3.1-0.20230623061834-0ab6e6217ee4
 	github.com/sourcegraph/sourcegraph/enterprise/dev/ci/images v0.0.0-20220203145655-4d2a39d3038a
 	github.com/sourcegraph/sourcegraph/lib v0.0.0-20230613175844-f031949c72f5
 	github.com/stretchr/testify v1.8.2
