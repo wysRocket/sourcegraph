@@ -15,7 +15,6 @@ import { LoadingPage } from './LoadingPage'
 import { Login } from './Login'
 import { NavBar, View } from './NavBar'
 import { Recipes } from './Recipes'
-import { Settings } from './Settings'
 import { UserHistory } from './UserHistory'
 import type { VSCodeWrapper } from './utils/VSCodeApi'
 
@@ -142,9 +141,6 @@ export const App: React.FunctionComponent<{ vscodeAPI: VSCodeWrapper }> = ({ vsc
                         />
                     )}
                     {view === 'recipes' && <Recipes vscodeAPI={vscodeAPI} />}
-                    {view === 'settings' && (
-                        <Settings onLogout={onLogout} endpoint={endpoint} version={config?.extensionVersion} />
-                    )}
                     {view === 'chat' && (
                         <Chat
                             messageInProgress={messageInProgress}

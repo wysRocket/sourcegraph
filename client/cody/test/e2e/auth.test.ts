@@ -31,7 +31,6 @@ test('requires a valid auth token and allows logouts', async ({ page, sidebar })
     await expect(sidebar.getByText('Error while establishing embeddings server connection.')).not.toBeVisible()
 
     await page.getByRole('button', { name: 'Chat Section' }).hover()
-    await page.getByRole('button', { name: 'User Settings' }).click()
     await sidebar.getByRole('button', { name: 'Sign Out' }).click()
     await page.getByRole('combobox', { name: 'input' }).press('Enter')
 
